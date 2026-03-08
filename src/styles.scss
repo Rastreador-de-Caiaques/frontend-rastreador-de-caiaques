@@ -1,12 +1,14 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap');
+
 :root {
-  --bg:           #0a0e14;
-  --surface:      rgba(14, 20, 30, 0.92);
-  --surface-2:    #141c28;
-  --border:       #1e2d40;
-  --accent:       #00e5ff;
-  --accent-dim:   rgba(0, 229, 255, 0.4);
-  --text-primary: #e8f0fe;
-  --text-muted:   #5a7a9a;
+  --bg:           #f0f4f8;
+  --surface:      rgba(255, 255, 255, 0.95);
+  --surface-2:    #e8eef4;
+  --border:       #c8d8e8;
+  --accent:       #0077b6;
+  --accent-dim:   rgba(0, 119, 182, 0.3);
+  --text-primary: #1a2b3c;
+  --text-muted:   #6b8fa8;
 }
 
 *, *::before, *::after {
@@ -26,17 +28,19 @@ html, body {
 }
 
 .leaflet-container {
-  background: #0d1520 !important;
+  background: #cdd9e5 !important;
 }
 
+// Mapa claro — sem filtro invertido
 .leaflet-tile {
-  filter: brightness(0.7) saturate(0.6) hue-rotate(180deg) invert(1);
+  filter: brightness(1.05) saturate(0.85);
 }
 
 .leaflet-control-zoom {
   border: none !important;
   margin-bottom: 2rem !important;
   margin-right: 1rem !important;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15) !important;
 
   a {
     background: var(--surface) !important;
@@ -45,11 +49,15 @@ html, body {
     width: 36px !important;
     height: 36px !important;
     line-height: 34px !important;
+
+    &:hover {
+      background: var(--surface-2) !important;
+    }
   }
 }
 
 .leaflet-control-attribution {
-  background: rgba(10, 14, 20, 0.7) !important;
+  background: rgba(240, 244, 248, 0.85) !important;
   color: var(--text-muted) !important;
   font-size: 0.6rem !important;
 }

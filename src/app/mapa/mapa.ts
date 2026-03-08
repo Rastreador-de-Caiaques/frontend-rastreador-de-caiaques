@@ -101,10 +101,16 @@ export class MapaComponent implements OnInit, AfterViewInit, OnDestroy {
     });
   }
 
-  selecionarCaiaque(caiaque: Caiaque): void {
-    this.caiaaqueSelecionado = caiaque;
-    this.map.flyTo([caiaque.lat, caiaque.lng], 15, { duration: 0.8 });
-  }
+selecionarCaiaque(caiaque: Caiaque): void {
+  this.caiaaqueSelecionado = caiaque;
+
+  // Offset para centralizar o caiaque na metade superior da tela
+  const ponto = this.map.project([caiaque.lat, caiaque.lng], 15);
+  ponto.y += window.innerHeight * 0.18; // empurra para cima visualmente
+  const coordAjustada = this.map.unproject(ponto, 15);
+
+  this.map.flyTo(coordAjustada, 15, { duration: 0.8 });
+}
 
   mostrarRota(caiaque: Caiaque): void {
     if (this.rotaLayer) {
