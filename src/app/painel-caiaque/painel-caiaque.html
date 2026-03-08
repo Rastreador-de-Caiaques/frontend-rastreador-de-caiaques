@@ -1,0 +1,39 @@
+<div class="painel-overlay" [class.visivel]="visivel" (click)="fecharPainel()"></div>
+
+<div class="painel" [class.visivel]="visivel" *ngIf="caiaque">
+  <div class="painel-handle"></div>
+
+  <div class="painel-header">
+    <div class="caiaque-id">
+      <span class="numero">{{ caiaque.id }}</span>
+      <div class="caiaque-info">
+        <span class="nome">{{ caiaque.nome }}</span>
+        <span class="coords">{{ caiaque.lat.toFixed(5) }}, {{ caiaque.lng.toFixed(5) }}</span>
+      </div>
+    </div>
+    <button class="btn-fechar" (click)="fecharPainel()">✕</button>
+  </div>
+
+  <div class="painel-body">
+    <div class="info-card">
+      <span class="info-label">Última atualização</span>
+      <span class="info-valor">{{ formatarData(caiaque.ultimaAtualizacao) }}</span>
+    </div>
+
+    <div class="rota-section">
+      <span class="info-label">Percurso do dia</span>
+      <div class="rota-lista">
+        <div class="rota-ponto" *ngFor="let ponto of caiaque.rota; let last = last">
+          <div class="rota-linha-container">
+            <div class="rota-dot" [class.ultimo]="last"></div>
+            <div class="rota-linha" *ngIf="!last"></div>
+          </div>
+          <div class="rota-dados">
+            <span class="rota-hora">{{ ponto.hora }}</span>
+            <span class="rota-coord">{{ ponto.lat.toFixed(4) }}, {{ ponto.lng.toFixed(4) }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

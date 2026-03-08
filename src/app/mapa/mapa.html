@@ -1,0 +1,40 @@
+<div class="mapa-container">
+
+  <header class="header">
+    <div class="header-logo">
+      <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
+        <path d="M3 13.5C3 13.5 5 10 12 10s9 3.5 9 3.5v1s-2 1.5-9 1.5-9-1.5-9-1.5v-1z"/>
+        <path d="M7 10.5L9 7h6l2 3.5"/>
+        <circle cx="12" cy="5.5" r="1.5"/>
+      </svg>
+      <span>Rastreador</span>
+    </div>
+    <div class="header-status">
+      <span class="sync-dot"></span>
+      <span class="sync-texto">{{ formatarHora(ultimaSync) }}</span>
+    </div>
+  </header>
+
+  <div id="mapa"></div>
+
+  <div class="chips-container">
+    <button
+      class="chip"
+      *ngFor="let c of caiaques"
+      [class.ativo]="caiaaqueSelecionado?.id === c.id"
+      (click)="selecionarCaiaque(c)"
+    >
+      {{ c.id }}
+    </button>
+    <button class="chip chip-center" (click)="centralizarMapa()">
+      ⊙
+    </button>
+  </div>
+
+  <app-painel-caiaque
+    [caiaque]="caiaaqueSelecionado"
+    (fechar)="fecharPainel()"
+    (mostrarRota)="mostrarRota($event)"
+  ></app-painel-caiaque>
+
+</div>
