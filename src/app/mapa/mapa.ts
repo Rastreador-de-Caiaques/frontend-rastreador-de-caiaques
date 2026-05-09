@@ -56,21 +56,21 @@ export class MapaComponent implements OnInit, AfterViewInit, OnDestroy {
     return L.divIcon({
       className: '',
       html: `
-        <div class="icone-caiaque">
-          <div class="icone-pulso"></div>
-          <div class="icone-corpo">
+        <div style="position:relative;width:52px;height:52px;display:flex;align-items:flex-end;justify-content:center;">
+          <div style="position:absolute;bottom:0;left:50%;transform:translateX(-50%);width:44px;height:44px;border-radius:50%;background:rgba(0,119,182,0.2);animation:pulso 2.5s ease-out infinite;"></div>
+          <div style="position:relative;width:40px;height:40px;background:#0077b6;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;box-shadow:0 4px 14px rgba(0,119,182,0.5);color:#fff;gap:1px;">
             <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
               <path d="M3 13.5C3 13.5 5 10 12 10s9 3.5 9 3.5v1s-2 1.5-9 1.5-9-1.5-9-1.5v-1z"/>
               <path d="M7 10.5L9 7h6l2 3.5"/>
               <circle cx="12" cy="5.5" r="1.5"/>
             </svg>
-            <span class="icone-num">${id}</span>
+            <span style="font-family:monospace;font-size:0.65rem;font-weight:700;line-height:1;color:#fff;">${id}</span>
           </div>
         </div>
       `,
       iconSize: [52, 52],
-      iconAnchor: [26, 52],
-      popupAnchor: [0, -52]
+      iconAnchor: [26, 26],
+      popupAnchor: [0, -30]
     });
   }
 
