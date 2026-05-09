@@ -62,7 +62,7 @@ export class CaiaqueService implements OnDestroy {
       next: pos => {
         console.log('[LoRa] Recebido:', pos); // objeto já parseado
 
-        if (pos.lat === null || pos.lng === null) return;
+        if (pos.id == null || pos.lat == null || pos.lng == null) return;
 
         this.estado.set(pos.id, {
           id:                pos.id,
