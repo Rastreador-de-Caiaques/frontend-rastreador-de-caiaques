@@ -61,3 +61,58 @@ html, body {
   color: var(--text-muted) !important;
   font-size: 0.6rem !important;
 }
+
+.icone-caiaque {
+  position: relative;
+  width: 52px;
+  height: 52px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.icone-pulso {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(0, 119, 182, 0.15);
+  animation: pulso 2.5s ease-out infinite;
+}
+
+.icone-corpo {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  background: #0077b6;
+  border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  box-shadow: 0 4px 12px rgba(0, 119, 182, 0.4);
+  color: #ffffff;
+}
+
+.icone-num {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.7rem;
+  font-weight: 700;
+  line-height: 1;
+  color: #ffffff;
+}
+
+@keyframes pulso {
+  0% {
+    transform: translateX(-50%) scale(1);
+    opacity: 0.6;
+  }
+  100% {
+    transform: translateX(-50%) scale(1.8);
+    opacity: 0;
+  }
+}
