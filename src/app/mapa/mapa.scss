@@ -46,6 +46,14 @@
     display: flex;
     align-items: center;
     gap: 0.4rem;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0.35rem 0.65rem;
+    border-radius: 999px;
+    transition: background 0.2s;
+
+    &:active { background: var(--surface-2); }
 }
 
 .sync-dot {

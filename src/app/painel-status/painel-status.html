@@ -1,0 +1,78 @@
+<div class="painel-overlay" [class.visivel]="aberto" (click)="fecharPainel()"></div>
+
+<div class="painel" [class.visivel]="aberto">
+  <div class="painel-handle"></div>
+
+  <div class="painel-header">
+    <div class="caiaque-id">
+      <div class="numero">
+        <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18">
+          <path d="M1 6l5 5 5-5 5 5 5-5M1 12l5 5 5-5 5 5 5-5"/>
+        </svg>
+      </div>
+      <div class="caiaque-info">
+        <span class="nome">Status do Sistema</span>
+        <span class="coords">{{ statusCaiaques.length }} caiaque(s) detectado(s)</span>
+      </div>
+    </div>
+    <button class="btn-fechar" (click)="fecharPainel()">✕</button>
+  </div>
+
+  <div class="painel-body">
+
+    <!-- Servidor -->
+    <div class="info-card">
+      <span class="info-label">Servidor</span>
+      <div class="status-badge" [class.badge--on]="servidorConectado" [class.badge--off]="!servidorConectado">
+        <span class="badge-dot"></span>
+        <span>{{ servidorConectado ? 'Conectado' : 'Desconectado' }}</span>
+      </div>
+    </div>
+
+    <!-- Base ESP -->
+    <div class="info-card">
+      <span class="info-label">Base ESP</span>
+      <div class="status-badge"
+        [class.badge--on]="espBase === 'online'"
+        [class.badge--wait]="espBase === 'aguardando'"
+        [class.badge--off]="espBase === 'offline'"
+      >
+        <span class="badge-dot"></span>
+        <span>{{ espBase === 'online' ? 'Online' : espBase === 'aguardando' ? 'Aguardando' : 'Sem sinal' }}</span>
+      </div>
+    </div>
+
+    <!-- Caiaques -->
+    <div class="rota-section" *ngIf="statusCaiaques.length > 0">
+      <span class="info-label">Caiaques</span>
+      <div class="rota-lista">
+        <div class="rota-ponto" *ngFor="let c of statusCaiaques; let last = last">
+          <div class="rota-linha-container">
+            <div class="rota-dot" [class.ultimo]="last" [class.sem-gps]="!c.temGPS"></div>
+            <div class="rota-linha" *ngIf="!last"></div>
+          </div>
+          <div class="caiaque-row">
+            <div class="caiaque-row-info">
+              <span class="rota-hora">{{ c.nome }}</span>
+              <span class="rota-coord">
+                {{ c.temGPS ? 'GPS ativo' : 'Sem GPS' }} · {{ formatarHora(c.ultimaAtualizacao) }}
+              </span>
+            </div>
+            <div class="status-badge status-badge--sm"
+              [class.badge--on]="c.temGPS"
+              [class.badge--wait]="!c.temGPS"
+            >
+              <span class="badge-dot"></span>
+              <span>{{ c.temGPS ? 'Ativo' : 'Conectado' }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="empty" *ngIf="statusCaiaques.length === 0">
+      Nenhum caiaque detectado ainda
+    </div>
+
+  </div>
+</div>

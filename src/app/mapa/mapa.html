@@ -9,12 +9,12 @@
       </svg>
       <span>Rastreador</span>
     </div>
-    <div class="header-status">
+    <button class="header-status" (click)="abrirPainelStatus()">
       <span class="sync-dot" [class.sync-dot--off]="!servidorConectado"></span>
       <span class="sync-texto">
         {{ servidorConectado ? formatarHora(ultimaSync) : 'Desconectado' }}
       </span>
-    </div>
+    </button>
   </header>
 
   <div id="mapa"></div>
@@ -53,5 +53,10 @@
     (fechar)="fecharPainel()"
     (mostrarRota)="mostrarRota($event)"
   ></app-painel-caiaque>
+
+  <app-painel-status
+    [aberto]="painelStatusAberto"
+    (fechar)="painelStatusAberto = false"
+  ></app-painel-status>
 
 </div>

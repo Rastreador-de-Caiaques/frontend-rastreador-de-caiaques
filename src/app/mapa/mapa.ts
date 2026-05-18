@@ -6,6 +6,7 @@ import * as L from 'leaflet';
 import { Subscription } from 'rxjs';
 import { CaiaqueService, Caiaque, Notificacao } from '../services/caiaques.service';
 import { PainelCaiaque } from '../painel-caiaque/painel-caiaque';
+import { PainelStatus } from '../painel-status/painel-status';
 
 interface NotificacaoAtiva extends Notificacao {
   saindo: boolean;
@@ -14,7 +15,7 @@ interface NotificacaoAtiva extends Notificacao {
 @Component({
   selector: 'app-mapa',
   standalone: true,
-  imports: [CommonModule, PainelCaiaque],
+  imports: [CommonModule, PainelCaiaque, PainelStatus],
   templateUrl: './mapa.html',
   styleUrls: ['./mapa.scss']
 })
@@ -32,6 +33,7 @@ export class MapaComponent implements OnInit, AfterViewInit, OnDestroy {
   ultimaSync: Date = new Date();
   servidorConectado = false;
   notificacoes: NotificacaoAtiva[] = [];
+  painelStatusAberto = false;
 
   constructor(
     private caiaqueService: CaiaqueService,
@@ -174,6 +176,10 @@ export class MapaComponent implements OnInit, AfterViewInit, OnDestroy {
       this.caiaques.map(c => [c.lat, c.lng] as L.LatLngExpression)
     );
     this.map.fitBounds(bounds, { padding: [60, 60] });
+  }
+
+  abrirPainelStatus(): void {
+    this.painelStatusAberto = true;
   }
 
   formatarHora(date: Date): string {

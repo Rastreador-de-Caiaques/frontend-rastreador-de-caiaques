@@ -23,6 +23,13 @@ export interface CaiaqueResponse {
   caiaques: Caiaque[];
 }
 
+export interface StatusCaiaque {
+  id: number;
+  nome: string;
+  temGPS: boolean;
+  ultimaAtualizacao: Date | null;
+}
+
 export interface Notificacao {
   id: number;
   tipo: 'servidor' | 'caiaque';
@@ -42,17 +49,23 @@ export class CaiaqueService implements OnDestroy {
   private readonly WS_URL = environment.backendWsUrl;
   private socket$: WebSocketSubject<PosicaoDto>;
 
-  private estado = new Map<number, Caiaque>();
+  private estado       = new Map<number, Caiaque>();
+  private statusMap    = new Map<number, StatusCaiaque>();
   private kayaksConhecidos = new Set<number>();
-  private notifId = 0;
+  private notifId      = 0;
+  private baseTimer: ReturnType<typeof setTimeout> | null = null;
 
-  private subject$$      = new BehaviorSubject<CaiaqueResponse>({ caiaques: [] });
-  private connected$$    = new BehaviorSubject<boolean>(false);
-  private notificacoes$$ = new Subject<Notificacao>();
+  private subject$$        = new BehaviorSubject<CaiaqueResponse>({ caiaques: [] });
+  private connected$$      = new BehaviorSubject<boolean>(false);
+  private notificacoes$$   = new Subject<Notificacao>();
+  private espBase$$        = new BehaviorSubject<'online' | 'aguardando' | 'offline'>('aguardando');
+  private statusCaiaques$$ = new BehaviorSubject<StatusCaiaque[]>([]);
 
-  caiaques$:     Observable<CaiaqueResponse> = this.subject$$.asObservable();
-  connected$:    Observable<boolean>         = this.connected$$.asObservable();
-  notificacoes$: Observable<Notificacao>     = this.notificacoes$$.asObservable();
+  caiaques$:       Observable<CaiaqueResponse>                       = this.subject$$.asObservable();
+  connected$:      Observable<boolean>                               = this.connected$$.asObservable();
+  notificacoes$:   Observable<Notificacao>                           = this.notificacoes$$.asObservable();
+  espBase$:        Observable<'online' | 'aguardando' | 'offline'>   = this.espBase$$.asObservable();
+  statusCaiaques$: Observable<StatusCaiaque[]>                       = this.statusCaiaques$$.asObservable();
 
   constructor() {
     this.socket$ = webSocket<PosicaoDto>({
@@ -67,6 +80,7 @@ export class CaiaqueService implements OnDestroy {
       closeObserver: {
         next: () => {
           this.connected$$.next(false);
+          this.espBase$$.next('offline');
           this.emitir('servidor', 'Servidor desconectado', 'erro');
         }
       }
@@ -83,13 +97,28 @@ export class CaiaqueService implements OnDestroy {
       next: pos => {
         if (pos.id == null) return;
 
-        // Notifica qualquer caiaque novo, mesmo sem GPS ainda
+        // Sinaliza base ESP ativa e reinicia o timer de inatividade
+        this.espBase$$.next('online');
+        if (this.baseTimer) clearTimeout(this.baseTimer);
+        this.baseTimer = setTimeout(() => this.espBase$$.next('offline'), 120_000);
+
+        // Notifica novo caiaque (mesmo sem GPS)
         if (!this.kayaksConhecidos.has(pos.id)) {
           this.kayaksConhecidos.add(pos.id);
           this.emitir('caiaque', `Caiaque ${pos.id} conectado`, 'info');
         }
 
-        // Só atualiza o mapa se tiver coordenadas válidas
+        // Atualiza status do caiaque
+        const status: StatusCaiaque = {
+          id:               pos.id,
+          nome:             `Caiaque ${pos.id}`,
+          temGPS:           pos.lat != null && pos.lng != null,
+          ultimaAtualizacao: new Date(),
+        };
+        this.statusMap.set(pos.id, status);
+        this.statusCaiaques$$.next([...this.statusMap.values()]);
+
+        // Atualiza posição no mapa apenas com GPS válido
         if (pos.lat == null || pos.lng == null) return;
 
         this.estado.set(pos.id, {
@@ -112,6 +141,7 @@ export class CaiaqueService implements OnDestroy {
   }
 
   ngOnDestroy(): void {
+    if (this.baseTimer) clearTimeout(this.baseTimer);
     this.socket$.complete();
   }
 }
