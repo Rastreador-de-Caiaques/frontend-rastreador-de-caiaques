@@ -4,8 +4,12 @@ import {
 import { CommonModule } from '@angular/common';
 import * as L from 'leaflet';
 import { Subscription } from 'rxjs';
-import { CaiaqueService, Caiaque } from '../services/caiaques.service';
+import { CaiaqueService, Caiaque, Notificacao } from '../services/caiaques.service';
 import { PainelCaiaque } from '../painel-caiaque/painel-caiaque';
+
+interface NotificacaoAtiva extends Notificacao {
+  saindo: boolean;
+}
 
 @Component({
   selector: 'app-mapa',
@@ -20,10 +24,14 @@ export class MapaComponent implements OnInit, AfterViewInit, OnDestroy {
   private marcadores: Map<number, L.Marker> = new Map();
   private rotaLayer: L.Polyline | null = null;
   private sub!: Subscription;
+  private subConexao!: Subscription;
+  private subNotif!: Subscription;
 
   caiaques: Caiaque[] = [];
   caiaaqueSelecionado: Caiaque | null = null;
   ultimaSync: Date = new Date();
+  servidorConectado = false;
+  notificacoes: NotificacaoAtiva[] = [];
 
   constructor(
     private caiaqueService: CaiaqueService,
@@ -35,6 +43,7 @@ export class MapaComponent implements OnInit, AfterViewInit, OnDestroy {
   ngAfterViewInit(): void {
     this.iniciarMapa();
     this.iniciarPolling();
+    this.iniciarNotificacoes();
   }
 
   private iniciarMapa(): void {
@@ -83,6 +92,29 @@ export class MapaComponent implements OnInit, AfterViewInit, OnDestroy {
     });
   }
 
+  private iniciarNotificacoes(): void {
+    this.subConexao = this.caiaqueService.connected$.subscribe(conectado => {
+      this.servidorConectado = conectado;
+      this.cdr.detectChanges();
+    });
+
+    this.subNotif = this.caiaqueService.notificacoes$.subscribe(n => {
+      const item: NotificacaoAtiva = { ...n, saindo: false };
+      this.notificacoes.push(item);
+      this.cdr.detectChanges();
+
+      // Inicia saída após 3.6s e remove após a animação (400ms)
+      setTimeout(() => {
+        item.saindo = true;
+        this.cdr.detectChanges();
+        setTimeout(() => {
+          this.notificacoes = this.notificacoes.filter(x => x.id !== n.id);
+          this.cdr.detectChanges();
+        }, 400);
+      }, 3600);
+    });
+  }
+
   private atualizarMarcadores(): void {
     this.caiaques.forEach(caiaque => {
       const pos: L.LatLngExpression = [caiaque.lat, caiaque.lng];
@@ -101,16 +133,15 @@ export class MapaComponent implements OnInit, AfterViewInit, OnDestroy {
     });
   }
 
-selecionarCaiaque(caiaque: Caiaque): void {
-  this.caiaaqueSelecionado = caiaque;
+  selecionarCaiaque(caiaque: Caiaque): void {
+    this.caiaaqueSelecionado = caiaque;
 
-  // Offset para centralizar o caiaque na metade superior da tela
-  const ponto = this.map.project([caiaque.lat, caiaque.lng], 15);
-  ponto.y += window.innerHeight * 0.18; // empurra para cima visualmente
-  const coordAjustada = this.map.unproject(ponto, 15);
+    const ponto = this.map.project([caiaque.lat, caiaque.lng], 15);
+    ponto.y += window.innerHeight * 0.18;
+    const coordAjustada = this.map.unproject(ponto, 15);
 
-  this.map.flyTo(coordAjustada, 15, { duration: 0.8 });
-}
+    this.map.flyTo(coordAjustada, 15, { duration: 0.8 });
+  }
 
   mostrarRota(caiaque: Caiaque): void {
     if (this.rotaLayer) {
@@ -153,6 +184,8 @@ selecionarCaiaque(caiaque: Caiaque): void {
 
   ngOnDestroy(): void {
     this.sub?.unsubscribe();
+    this.subConexao?.unsubscribe();
+    this.subNotif?.unsubscribe();
     this.map?.remove();
   }
 }

@@ -52,8 +52,14 @@
     width: 7px;
     height: 7px;
     border-radius: 50%;
-    background: var(--accent);
+    background: #22c55e;
     animation: pulso-dot 2s ease-in-out infinite;
+    transition: background 0.4s;
+
+    &--off {
+        background: #ef4444;
+        animation: none;
+    }
 }
 
 .sync-texto {
@@ -119,6 +125,62 @@
         opacity: 0;
     }
 }
+
+// ─── Notificações ────────────────────────────────────────────────────────────
+
+.notificacoes {
+    position: absolute;
+    top: calc(56px + 0.75rem);
+    right: 1rem;
+    z-index: 200;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    pointer-events: none;
+}
+
+.notif {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.55rem 0.85rem;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+    font-family: 'Space Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--text-primary);
+    animation: notif-entrar 0.3s ease forwards;
+    white-space: nowrap;
+
+    &--saindo {
+        animation: notif-sair 0.4s ease forwards;
+    }
+
+    &--sucesso .notif-barra { background: #22c55e; }
+    &--erro    .notif-barra { background: #ef4444; }
+    &--info    .notif-barra { background: var(--accent); }
+}
+
+.notif-barra {
+    width: 3px;
+    height: 1.1rem;
+    border-radius: 2px;
+    flex-shrink: 0;
+}
+
+@keyframes notif-entrar {
+    from { opacity: 0; transform: translateX(16px); }
+    to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes notif-sair {
+    from { opacity: 1; transform: translateX(0); }
+    to   { opacity: 0; transform: translateX(16px); }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 @keyframes pulso-dot {
 

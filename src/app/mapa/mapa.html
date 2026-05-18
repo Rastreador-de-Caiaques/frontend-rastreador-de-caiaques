@@ -10,12 +10,29 @@
       <span>Rastreador</span>
     </div>
     <div class="header-status">
-      <span class="sync-dot"></span>
-      <span class="sync-texto">{{ formatarHora(ultimaSync) }}</span>
+      <span class="sync-dot" [class.sync-dot--off]="!servidorConectado"></span>
+      <span class="sync-texto">
+        {{ servidorConectado ? formatarHora(ultimaSync) : 'Desconectado' }}
+      </span>
     </div>
   </header>
 
   <div id="mapa"></div>
+
+  <!-- Toasts de notificação -->
+  <div class="notificacoes">
+    <div
+      *ngFor="let n of notificacoes"
+      class="notif"
+      [class.notif--saindo]="n.saindo"
+      [class.notif--sucesso]="n.cor === 'sucesso'"
+      [class.notif--erro]="n.cor === 'erro'"
+      [class.notif--info]="n.cor === 'info'"
+    >
+      <span class="notif-barra"></span>
+      <span class="notif-texto">{{ n.mensagem }}</span>
+    </div>
+  </div>
 
   <div class="chips-container">
     <button

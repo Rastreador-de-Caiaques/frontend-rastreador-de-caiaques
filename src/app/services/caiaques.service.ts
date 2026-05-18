@@ -1,6 +1,6 @@
 import { Injectable, OnDestroy } from '@angular/core';
 import { webSocket, WebSocketSubject } from 'rxjs/webSocket';
-import { BehaviorSubject, Observable, timer } from 'rxjs';
+import { BehaviorSubject, Observable, Subject, timer } from 'rxjs';
 import { retry } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
 
@@ -23,6 +23,13 @@ export interface CaiaqueResponse {
   caiaques: Caiaque[];
 }
 
+export interface Notificacao {
+  id: number;
+  tipo: 'servidor' | 'caiaque';
+  mensagem: string;
+  cor: 'sucesso' | 'erro' | 'info';
+}
+
 interface PosicaoDto {
   id: number;
   lat: number | null;
@@ -33,36 +40,57 @@ interface PosicaoDto {
 export class CaiaqueService implements OnDestroy {
 
   private readonly WS_URL = environment.backendWsUrl;
-
   private socket$: WebSocketSubject<PosicaoDto>;
 
-  // Estado interno: um Map por ID de caiaque
   private estado = new Map<number, Caiaque>();
-  private subject$$ = new BehaviorSubject<CaiaqueResponse>({ caiaques: [] });
+  private kayaksConhecidos = new Set<number>();
+  private notifId = 0;
 
-  caiaques$: Observable<CaiaqueResponse> = this.subject$$.asObservable();
+  private subject$$      = new BehaviorSubject<CaiaqueResponse>({ caiaques: [] });
+  private connected$$    = new BehaviorSubject<boolean>(false);
+  private notificacoes$$ = new Subject<Notificacao>();
+
+  caiaques$:     Observable<CaiaqueResponse> = this.subject$$.asObservable();
+  connected$:    Observable<boolean>         = this.connected$$.asObservable();
+  notificacoes$: Observable<Notificacao>     = this.notificacoes$$.asObservable();
 
   constructor() {
     this.socket$ = webSocket<PosicaoDto>({
       url: this.WS_URL,
-      deserializer: msg => {
-        console.log('[LoRa] Raw:', msg.data); // string bruta antes do parse
-        return JSON.parse(msg.data) as PosicaoDto;
+      deserializer: msg => JSON.parse(msg.data) as PosicaoDto,
+      openObserver: {
+        next: () => {
+          this.connected$$.next(true);
+          this.emitir('servidor', 'Servidor conectado', 'sucesso');
+        }
+      },
+      closeObserver: {
+        next: () => {
+          this.connected$$.next(false);
+          this.emitir('servidor', 'Servidor desconectado', 'erro');
+        }
       }
     });
 
     this.socket$.pipe(
       retry({
         delay: (_, tentativa) => {
-          console.warn(`Reconectando ao ESP32 (tentativa ${tentativa})...`);
+          console.warn(`Reconectando (tentativa ${tentativa})...`);
           return timer(5000);
         }
       })
     ).subscribe({
       next: pos => {
-        console.log('[LoRa] Recebido:', pos); // objeto já parseado
+        if (pos.id == null) return;
 
-        if (pos.id == null || pos.lat == null || pos.lng == null) return;
+        // Notifica qualquer caiaque novo, mesmo sem GPS ainda
+        if (!this.kayaksConhecidos.has(pos.id)) {
+          this.kayaksConhecidos.add(pos.id);
+          this.emitir('caiaque', `Caiaque ${pos.id} conectado`, 'info');
+        }
+
+        // Só atualiza o mapa se tiver coordenadas válidas
+        if (pos.lat == null || pos.lng == null) return;
 
         this.estado.set(pos.id, {
           id:                pos.id,
@@ -77,6 +105,10 @@ export class CaiaqueService implements OnDestroy {
       },
       error: err => console.error('[WS] Erro:', err)
     });
+  }
+
+  private emitir(tipo: Notificacao['tipo'], mensagem: string, cor: Notificacao['cor']): void {
+    this.notificacoes$$.next({ id: ++this.notifId, tipo, mensagem, cor });
   }
 
   ngOnDestroy(): void {
