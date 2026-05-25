@@ -10,14 +10,25 @@ export interface PontoRota {
   hora: string;
 }
 
-export interface Caiaque {
+export interface PontoHistorico {
+  lat: number;
+  lng: number;
+  timestamp: number; // Date.now()
+}
+
+export interface SessaoCaiaque {
   id: number;
   nome: string;
   lat: number;
   lng: number;
   ultimaAtualizacao: string;
-  rota: PontoRota[];
+  rota: PontoRota[];           // mantida para compatibilidade com painel-caiaque
+  historico: PontoHistorico[]; // array acumulado para rastro e tempo no mar
+  primeiroSinal: number;       // timestamp do primeiro ponto recebido
+  ultimoSinal: number;         // timestamp do último ponto recebido
 }
+
+export type Caiaque = SessaoCaiaque;
 
 export interface CaiaqueResponse {
   caiaques: Caiaque[];
@@ -54,6 +65,11 @@ export class CaiaqueService implements OnDestroy {
   private notifId          = 0;
   private baseTimer: ReturnType<typeof setTimeout> | null = null;
 
+  private readonly STORAGE_KEY        = 'rastreador_sessoes';
+  private readonly DEBOUNCE_SAVE_MS   = 5000;
+  private readonly DISTANCIA_MINIMA_M = 5;
+  private saveDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+
   private subject$$        = new BehaviorSubject<CaiaqueResponse>({ caiaques: [] });
   private connected$$      = new BehaviorSubject<boolean>(false);
   private notificacoes$$   = new Subject<Notificacao>();
@@ -67,6 +83,8 @@ export class CaiaqueService implements OnDestroy {
   statusCaiaques$: Observable<StatusCaiaque[]>                     = this.statusCaiaques$$.asObservable();
 
   constructor() {
+    this.carregarDoStorage();
+
     this.socket$ = webSocket<WsMensagem>({
       url: this.WS_URL,
       deserializer: msg => JSON.parse(msg.data) as WsMensagem,
@@ -122,19 +140,95 @@ export class CaiaqueService implements OnDestroy {
 
         if (pos.lat == null || pos.lng == null) return;
 
-        this.estado.set(pos.id, {
+        const agora           = Date.now();
+        const sessaoExistente = this.estado.get(pos.id);
+
+        if (sessaoExistente) {
+          const dist = this.distanciaMetros(
+            sessaoExistente.lat, sessaoExistente.lng, pos.lat, pos.lng
+          );
+          if (dist < this.DISTANCIA_MINIMA_M) return;
+        }
+
+        const hora = new Date(agora).toLocaleTimeString('pt-BR', {
+          hour: '2-digit', minute: '2-digit', second: '2-digit'
+        });
+        const novoPonto: PontoHistorico = { lat: pos.lat, lng: pos.lng, timestamp: agora };
+
+        const novaSessao: SessaoCaiaque = {
           id:                pos.id,
           nome:              `Caiaque ${pos.id}`,
           lat:               pos.lat,
           lng:               pos.lng,
-          ultimaAtualizacao: new Date().toISOString(),
-          rota:              this.estado.get(pos.id)?.rota ?? []
-        });
+          ultimaAtualizacao: new Date(agora).toISOString(),
+          rota:              [...(sessaoExistente?.rota ?? []), { lat: pos.lat, lng: pos.lng, hora }],
+          historico:         [...(sessaoExistente?.historico ?? []), novoPonto],
+          primeiroSinal:     sessaoExistente?.primeiroSinal ?? agora,
+          ultimoSinal:       agora,
+        };
 
+        this.estado.set(pos.id, novaSessao);
         this.subject$$.next({ caiaques: [...this.estado.values()] });
+        this.agendarSalvamento();
       },
       error: err => console.error('[WS] Erro:', err)
     });
+  }
+
+  private carregarDoStorage(): void {
+    try {
+      const raw = localStorage.getItem(this.STORAGE_KEY);
+      if (!raw) return;
+      const sessoes: SessaoCaiaque[] = JSON.parse(raw);
+      sessoes.forEach(s => {
+        this.estado.set(s.id, s);
+        this.statusMap.set(s.id, {
+          id: s.id,
+          nome: s.nome,
+          temGPS: true,
+          ultimaAtualizacao: new Date(s.ultimoSinal),
+        });
+        this.kayaksConhecidos.add(s.id);
+      });
+      this.subject$$.next({ caiaques: [...this.estado.values()] });
+      this.statusCaiaques$$.next([...this.statusMap.values()]);
+    } catch (e) {
+      console.warn('[Storage] Erro ao carregar sessões:', e);
+    }
+  }
+
+  private agendarSalvamento(): void {
+    if (this.saveDebounceTimer) clearTimeout(this.saveDebounceTimer);
+    this.saveDebounceTimer = setTimeout(() => {
+      try {
+        localStorage.setItem(this.STORAGE_KEY, JSON.stringify([...this.estado.values()]));
+      } catch (e) {
+        console.warn('[Storage] Erro ao salvar sessões:', e);
+      }
+    }, this.DEBOUNCE_SAVE_MS);
+  }
+
+  private distanciaMetros(lat1: number, lng1: number, lat2: number, lng2: number): number {
+    const R    = 6371000;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLng = (lng2 - lng1) * Math.PI / 180;
+    const a    = Math.sin(dLat / 2) ** 2 +
+                 Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                 Math.sin(dLng / 2) ** 2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  }
+
+  public getSessao(id: number): SessaoCaiaque | undefined {
+    return this.estado.get(id);
+  }
+
+  public limparSessoes(): void {
+    this.estado.clear();
+    this.statusMap.clear();
+    this.kayaksConhecidos.clear();
+    localStorage.removeItem(this.STORAGE_KEY);
+    this.subject$$.next({ caiaques: [] });
+    this.statusCaiaques$$.next([]);
   }
 
   private sinalizarBase(): void {
@@ -149,6 +243,7 @@ export class CaiaqueService implements OnDestroy {
 
   ngOnDestroy(): void {
     if (this.baseTimer) clearTimeout(this.baseTimer);
+    if (this.saveDebounceTimer) clearTimeout(this.saveDebounceTimer);
     this.socket$.complete();
   }
 }
