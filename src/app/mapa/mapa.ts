@@ -4,7 +4,7 @@ import {
 import { CommonModule } from '@angular/common';
 import * as L from 'leaflet';
 import { Subscription } from 'rxjs';
-import { CaiaqueService, Caiaque, Notificacao } from '../services/caiaques.service';
+import { CaiaqueService, Caiaque, SessaoCaiaque, Notificacao } from '../services/caiaques.service';
 import { PainelCaiaque } from '../painel-caiaque/painel-caiaque';
 import { PainelStatus } from '../painel-status/painel-status';
 
@@ -23,8 +23,13 @@ export class MapaComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private map!: L.Map;
   private marcadores: Map<number, L.Marker> = new Map();
-  private rotaLayer: L.Polyline | null = null;
+  private rastros:    Map<number, L.Polyline> = new Map();
   private sub!: Subscription;
+
+  private readonly CORES_RASTRO = [
+    '#00e5ff', '#ff6b6b', '#a8ff78', '#ffbe0b',
+    '#fb5607', '#8338ec', '#ff006e', '#3a86ff'
+  ];
   private subConexao!: Subscription;
   private subNotif!: Subscription;
 
@@ -64,24 +69,47 @@ export class MapaComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private criarIconeCaiaque(id: number): L.DivIcon {
+    const cores = [
+      { casco: '#2d9e4f', borda: '#4fc970', escuro: '#1a5c32', highlight: '#6ade8a' },
+      { casco: '#0077b6', borda: '#48cae4', escuro: '#023e8a', highlight: '#90e0ef' },
+      { casco: '#e63946', borda: '#ff6b6b', escuro: '#9d0208', highlight: '#ffb3b3' },
+      { casco: '#e76f51', borda: '#f4a261', escuro: '#9c4221', highlight: '#fcd5b5' },
+    ];
+
+    const c = cores[(id - 1) % cores.length];
+
+    const svg = `
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="64" height="64">
+        <ellipse cx="50" cy="54" rx="38" ry="9" fill="${c.escuro}" opacity="0.20"/>
+        <ellipse cx="50" cy="50" rx="42" ry="13" fill="${c.casco}" transform="rotate(-35, 50, 50)"/>
+        <ellipse cx="50" cy="50" rx="42" ry="13" fill="none" stroke="${c.borda}" stroke-width="1.5" transform="rotate(-35, 50, 50)"/>
+        <ellipse cx="50" cy="50" rx="10" ry="6" fill="${c.escuro}" transform="rotate(-35, 50, 50)"/>
+        <ellipse cx="50" cy="50" rx="10" ry="6" fill="none" stroke="${c.borda}" stroke-width="1" transform="rotate(-35, 50, 50)"/>
+        <ellipse cx="43" cy="44" rx="14" ry="3.5" fill="${c.highlight}" opacity="0.35" transform="rotate(-35, 43, 44)"/>
+        <line x1="14" y1="78" x2="86" y2="22" stroke="${c.escuro}" stroke-width="3" stroke-linecap="round"/>
+        <ellipse cx="18" cy="74" rx="9" ry="5" fill="${c.escuro}" stroke="${c.borda}" stroke-width="1" transform="rotate(-35, 18, 74)"/>
+        <ellipse cx="18" cy="74" rx="9" ry="5" fill="${c.borda}" opacity="0.3" transform="rotate(-35, 18, 74)"/>
+        <ellipse cx="82" cy="26" rx="9" ry="5" fill="${c.escuro}" stroke="${c.borda}" stroke-width="1" transform="rotate(-35, 82, 26)"/>
+        <ellipse cx="82" cy="26" rx="9" ry="5" fill="${c.borda}" opacity="0.3" transform="rotate(-35, 82, 26)"/>
+        <line x1="11" y1="53" x2="89" y2="47" stroke="${c.escuro}" stroke-width="1" opacity="0.5" transform="rotate(-35, 50, 50)"/>
+        <circle cx="72" cy="28" r="10" fill="white" opacity="0.92"/>
+        <text x="72" y="32" font-family="monospace" font-size="11" font-weight="700" text-anchor="middle" fill="${c.escuro}">${id}</text>
+      </svg>
+    `;
+
     return L.divIcon({
       className: '',
       html: `
-        <div style="position:relative;width:52px;height:52px;display:flex;align-items:flex-end;justify-content:center;">
-          <div style="position:absolute;bottom:0;left:50%;transform:translateX(-50%);width:44px;height:44px;border-radius:50%;background:rgba(0,119,182,0.2);animation:pulso 2.5s ease-out infinite;"></div>
-          <div style="position:relative;width:40px;height:40px;background:#0077b6;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;box-shadow:0 4px 14px rgba(0,119,182,0.5);color:#fff;gap:1px;">
-            <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
-              <path d="M3 13.5C3 13.5 5 10 12 10s9 3.5 9 3.5v1s-2 1.5-9 1.5-9-1.5-9-1.5v-1z"/>
-              <path d="M7 10.5L9 7h6l2 3.5"/>
-              <circle cx="12" cy="5.5" r="1.5"/>
-            </svg>
-            <span style="font-family:monospace;font-size:0.65rem;font-weight:700;line-height:1;color:#fff;">${id}</span>
-          </div>
-        </div>
+        <div style="
+          position: relative;
+          width: 64px;
+          height: 64px;
+          filter: drop-shadow(0 3px 6px rgba(0,0,0,0.28));
+        ">${svg}</div>
       `,
-      iconSize: [52, 52],
-      iconAnchor: [26, 26],
-      popupAnchor: [0, -30]
+      iconSize:    [64, 64],
+      iconAnchor:  [32, 32],
+      popupAnchor: [0, -36]
     });
   }
 
@@ -132,7 +160,32 @@ export class MapaComponent implements OnInit, AfterViewInit, OnDestroy {
 
         this.marcadores.set(caiaque.id, marker);
       }
+
+      this.atualizarRastro(caiaque);
     });
+  }
+
+  private corParaCaiaque(id: number): string {
+    return this.CORES_RASTRO[(id - 1) % this.CORES_RASTRO.length];
+  }
+
+  private atualizarRastro(caiaque: SessaoCaiaque): void {
+    if (!caiaque.historico || caiaque.historico.length < 2) return;
+
+    const pontos: L.LatLngExpression[] = caiaque.historico.map(p => [p.lat, p.lng]);
+    const cor = this.corParaCaiaque(caiaque.id);
+
+    if (this.rastros.has(caiaque.id)) {
+      this.rastros.get(caiaque.id)!.setLatLngs(pontos);
+    } else {
+      const polyline = L.polyline(pontos, {
+        color: cor,
+        weight: 3,
+        opacity: 0.75,
+        dashArray: '8, 6'
+      }).addTo(this.map);
+      this.rastros.set(caiaque.id, polyline);
+    }
   }
 
   selecionarCaiaque(caiaque: Caiaque): void {
@@ -145,28 +198,8 @@ export class MapaComponent implements OnInit, AfterViewInit, OnDestroy {
     this.map.flyTo(coordAjustada, 15, { duration: 0.8 });
   }
 
-  mostrarRota(caiaque: Caiaque): void {
-    if (this.rotaLayer) {
-      this.map.removeLayer(this.rotaLayer);
-    }
-
-    const pontos: L.LatLngExpression[] = caiaque.rota.map(p => [p.lat, p.lng]);
-
-    this.rotaLayer = L.polyline(pontos, {
-      color: '#00e5ff',
-      weight: 3,
-      opacity: 0.8,
-      dashArray: '8, 6'
-    }).addTo(this.map);
-  }
-
   fecharPainel(): void {
     this.caiaaqueSelecionado = null;
-
-    if (this.rotaLayer) {
-      this.map.removeLayer(this.rotaLayer);
-      this.rotaLayer = null;
-    }
   }
 
   centralizarMapa(): void {
@@ -192,6 +225,7 @@ export class MapaComponent implements OnInit, AfterViewInit, OnDestroy {
     this.sub?.unsubscribe();
     this.subConexao?.unsubscribe();
     this.subNotif?.unsubscribe();
+    this.rastros.forEach(r => r.remove());
     this.map?.remove();
   }
 }
