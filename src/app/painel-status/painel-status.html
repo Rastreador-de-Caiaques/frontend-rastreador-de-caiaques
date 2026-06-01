@@ -57,6 +57,9 @@
               <span class="rota-coord">
                 {{ c.temGPS ? 'GPS ativo' : 'Sem GPS' }} · {{ formatarHora(c.ultimaAtualizacao) }}
               </span>
+              <span class="rota-coord">
+                No mar: {{ tempoNoMar(caiaqueService.getSessao(c.id)) }}
+              </span>
             </div>
             <div class="status-badge status-badge--sm"
               [class.badge--on]="c.temGPS"

@@ -1,7 +1,7 @@
 import { Component, Input, Output, EventEmitter, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Subscription } from 'rxjs';
-import { CaiaqueService, StatusCaiaque } from '../services/caiaques.service';
+import { CaiaqueService, StatusCaiaque, SessaoCaiaque } from '../services/caiaques.service';
 
 @Component({
   selector: 'app-painel-status',
@@ -19,9 +19,10 @@ export class PainelStatus implements OnInit, OnDestroy {
   statusCaiaques: StatusCaiaque[] = [];
 
   private subs: Subscription[] = [];
+  private tickTimer: ReturnType<typeof setInterval> | null = null;
 
   constructor(
-    private caiaqueService: CaiaqueService,
+    public caiaqueService: CaiaqueService,
     private cdr: ChangeDetectorRef
   ) {}
 
@@ -40,14 +41,26 @@ export class PainelStatus implements OnInit, OnDestroy {
         this.cdr.detectChanges();
       })
     );
+
+    this.tickTimer = setInterval(() => this.cdr.detectChanges(), 1000);
   }
 
   ngOnDestroy(): void {
     this.subs.forEach(s => s.unsubscribe());
+    if (this.tickTimer) clearInterval(this.tickTimer);
   }
 
   fecharPainel(): void {
     this.fechar.emit();
+  }
+
+  tempoNoMar(sessao: SessaoCaiaque | undefined): string {
+    if (!sessao?.primeiroSinal) return '--:--:--';
+    const diff = Date.now() - sessao.primeiroSinal;
+    const h = Math.floor(diff / 3600000).toString().padStart(2, '0');
+    const m = Math.floor((diff % 3600000) / 60000).toString().padStart(2, '0');
+    const s = Math.floor((diff % 60000) / 1000).toString().padStart(2, '0');
+    return `${h}:${m}:${s}`;
   }
 
   formatarHora(date: Date | null): string {
