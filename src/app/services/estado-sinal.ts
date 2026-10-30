@@ -4,9 +4,9 @@ export type EstadoSinal = 'ao-vivo' | 'fraco' | 'sem-sinal' | 'encerrado';
 export const LIMITE_AO_VIVO_MS = 30_000;
 export const LIMITE_FRACO_MS = 120_000;
 /** Sem sinal por mais que isso, o passeio é considerado encerrado e sai do mapa. */
-export const ENCERRA_AUTOMATICO_MS = 60 * 60_000;
+export const ENCERRA_AUTOMATICO_MS = 30 * 60_000;
 /** Ao abrir a página, sessões mais velhas que isso (de outro dia) são descartadas. */
-export const DESCARTE_AO_ABRIR_MS = 12 * 60 * 60_000;
+export const DESCARTE_AO_ABRIR_MS = 12 * 30 * 60_000;
 
 export function estadoSinal(ultimoSinal: number, agora: number): EstadoSinal {
   const decorrido = agora - ultimoSinal;

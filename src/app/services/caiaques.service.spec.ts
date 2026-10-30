@@ -91,18 +91,18 @@ describe('CaiaqueService — sinal dos caiaques', () => {
     expect(ultimos[0].estado).toBe('ao-vivo');
   });
 
-  it('depois de 60 min sem sinal o caiaque sai do mapa', () => {
+  it('depois de 30 min sem sinal o caiaque sai do mapa', () => {
     criar();
     service.receber(pacote(1));
     service.receber(pacote(2));
-    avancar(61 * MIN);
+    avancar(31 * MIN);
     expect(ultimos.length).toBe(0);
   });
 
   it('só some quem passou do prazo', () => {
     criar();
     service.receber(pacote(1));
-    avancar(50 * MIN);
+    avancar(20 * MIN);
     service.receber(pacote(2, -23.97, -46.34));
     avancar(15 * MIN);
     expect(ultimos.map(c => c.id)).toEqual([2]);
@@ -180,7 +180,7 @@ describe('CaiaqueService — ao reabrir a página', () => {
     localStorage.removeItem('rastreador_sessoes');
   });
 
-  it('não restaura caiaques de outro passeio (mais de 60 min sem sinal)', () => {
+  it('não restaura caiaques de outro passeio (mais de 30 min sem sinal)', () => {
     const agora = T0;
     spyOn(Date, 'now').and.returnValue(agora);
     localStorage.setItem('rastreador_sessoes', JSON.stringify([

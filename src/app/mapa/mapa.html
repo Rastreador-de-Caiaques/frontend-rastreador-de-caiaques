@@ -1,4 +1,4 @@
-<div class="mapa-container">
+<div class="mapa-container" [class.com-detalhe]="!!caiaaqueSelecionado">
 
   <header class="header">
     <div class="header-logo">
@@ -17,7 +17,65 @@
     </button>
   </header>
 
-  <div id="mapa"></div>
+  <aside class="frota" aria-label="Frota de hoje">
+    <div class="frota-topo">
+      <div class="frota-titulo">
+        <span class="frota-nome">Frota de hoje</span>
+        <span class="frota-resumo">{{ resumo }}</span>
+      </div>
+      <div class="filtros" role="group" aria-label="Filtrar caiaques">
+        <button type="button" class="filtro" [class.filtro--ativo]="filtro === 'todos'" (click)="filtro = 'todos'">Todos {{ caiaques.length }}</button>
+        <button type="button" class="filtro" [class.filtro--ativo]="filtro === 'ao-vivo'" (click)="filtro = 'ao-vivo'">Ao vivo {{ contar('ao-vivo') }}</button>
+        <button type="button" class="filtro filtro--alerta" [class.filtro--ativo]="filtro === 'alerta'" (click)="filtro = 'alerta'">Alerta {{ contar('sem-sinal') }}</button>
+      </div>
+    </div>
+
+    <div class="frota-lista">
+      <p class="vazio" *ngIf="caiaques.length === 0">
+        Nenhum caiaque enviando sinal agora. Eles aparecem aqui assim que a base receber o primeiro pacote.
+      </p>
+
+      <ng-container *ngIf="atencao.length">
+        <h2 class="secao secao--alerta">Precisa de atenção · {{ atencao.length }}</h2>
+        <button type="button" class="linha linha--sem-sinal" *ngFor="let c of atencao; trackBy: porId"
+                [class.linha--ativa]="caiaaqueSelecionado?.id === c.id" (click)="selecionarCaiaque(c)">
+          <span class="num num--sem-sinal">{{ c.id }}</span>
+          <span class="linha-texto">
+            <span class="linha-titulo">{{ c.nome }}</span>
+            <span class="linha-sub">Visto {{ ha(c) }} · última posição no mapa</span>
+          </span>
+          <span class="selo-estado selo-estado--sem-sinal">! Sem sinal</span>
+        </button>
+      </ng-container>
+
+      <ng-container *ngIf="emPasseio.length">
+        <h2 class="secao">Em passeio · {{ emPasseio.length }}</h2>
+        <button type="button" class="linha" *ngFor="let c of emPasseio; trackBy: porId"
+                [class.linha--ativa]="caiaaqueSelecionado?.id === c.id" (click)="selecionarCaiaque(c)">
+          <span class="num" [class.num--fraco]="c.estado === 'fraco'">{{ c.id }}</span>
+          <span class="linha-texto">
+            <span class="linha-titulo">{{ c.nome }}</span>
+            <span class="linha-sub">no mar há {{ noMar(c) }} · {{ ha(c) }}</span>
+          </span>
+          <span class="selo-estado" [class.selo-estado--fraco]="c.estado === 'fraco'">
+            {{ c.estado === 'fraco' ? '◐ Sinal fraco' : '● Ao vivo' }}
+          </span>
+        </button>
+      </ng-container>
+    </div>
+  </aside>
+
+  <div class="area-mapa">
+    <div id="mapa"></div>
+
+    <button type="button" class="btn-centralizar" (click)="centralizarMapa()" aria-label="Mostrar todos os caiaques no mapa">⊙</button>
+
+    <button type="button" class="faixa-alerta" role="alert" *ngIf="atencao.length" (click)="selecionarCaiaque(atencao[0])">
+      <b>! {{ atencao[0].nome }}</b>
+      <span>sem sinal · visto {{ ha(atencao[0]) }} · última posição marcada</span>
+      <span *ngIf="atencao.length > 1" class="faixa-mais">+{{ atencao.length - 1 }}</span>
+    </button>
+  </div>
 
   <!-- Toasts de notificação -->
   <div class="notificacoes">
@@ -32,23 +90,6 @@
       <span class="notif-barra"></span>
       <span class="notif-texto">{{ n.mensagem }}</span>
     </div>
-  </div>
-
-  <div class="chips-container">
-    <button
-      class="chip"
-      *ngFor="let c of caiaques"
-      [class.ativo]="caiaaqueSelecionado?.id === c.id"
-      [class.chip--fraco]="c.estado === 'fraco'"
-      [class.chip--sem-sinal]="c.estado === 'sem-sinal'"
-      [attr.aria-label]="'Caiaque ' + c.id + (c.estado === 'sem-sinal' ? ', sem sinal' : c.estado === 'fraco' ? ', sinal fraco' : '')"
-      (click)="selecionarCaiaque(c)"
-    >
-      {{ c.id }}{{ c.estado === 'sem-sinal' ? ' !' : '' }}
-    </button>
-    <button class="chip chip-center" (click)="centralizarMapa()">
-      ⊙
-    </button>
   </div>
 
   <app-painel-caiaque

@@ -7,7 +7,7 @@ import { Subscription } from 'rxjs';
 import { CaiaqueService, Caiaque, SessaoCaiaque, Notificacao } from '../services/caiaques.service';
 import { PainelCaiaque } from '../painel-caiaque/painel-caiaque';
 import { PainelStatus } from '../painel-status/painel-status';
-import { EstadoSinal } from '../services/estado-sinal';
+import { EstadoSinal, textoHa } from '../services/estado-sinal';
 
 interface NotificacaoAtiva extends Notificacao {
   saindo: boolean;
@@ -41,6 +41,8 @@ export class MapaComponent implements OnInit, AfterViewInit, OnDestroy {
   servidorConectado = false;
   notificacoes: NotificacaoAtiva[] = [];
   painelStatusAberto = false;
+  filtro: 'todos' | 'ao-vivo' | 'alerta' = 'todos';
+  private relogio: ReturnType<typeof setInterval> | null = null;
 
   constructor(
     private caiaqueService: CaiaqueService,
@@ -50,6 +52,8 @@ export class MapaComponent implements OnInit, AfterViewInit, OnDestroy {
   ngOnInit(): void {}
 
   ngAfterViewInit(): void {
+    // Os "há X s" da lista precisam andar mesmo quando nenhum pacote chega.
+    this.relogio = setInterval(() => this.cdr.detectChanges(), 1000);
     this.iniciarMapa();
     this.iniciarPolling();
     this.iniciarNotificacoes();
@@ -142,6 +146,8 @@ export class MapaComponent implements OnInit, AfterViewInit, OnDestroy {
     });
 
     this.subNotif = this.caiaqueService.notificacoes$.subscribe(n => {
+      // A perda de sinal já aparece na faixa fixa do mapa; o toast repetiria o aviso.
+      if (n.tipo === 'caiaque' && n.cor === 'erro') return;
       const item: NotificacaoAtiva = { ...n, saindo: false };
       this.notificacoes.push(item);
       this.cdr.detectChanges();
@@ -221,23 +227,64 @@ export class MapaComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
+  private get filtrados(): Caiaque[] {
+    switch (this.filtro) {
+      case 'ao-vivo': return this.caiaques.filter(c => c.estado !== 'sem-sinal');
+      case 'alerta':  return this.caiaques.filter(c => c.estado === 'sem-sinal');
+      default:        return this.caiaques;
+    }
+  }
+
+  get atencao(): Caiaque[] {
+    return this.filtrados.filter(c => c.estado === 'sem-sinal');
+  }
+
+  get emPasseio(): Caiaque[] {
+    return this.filtrados.filter(c => c.estado !== 'sem-sinal');
+  }
+
+  get resumo(): string {
+    const n = this.caiaques.length;
+    if (n === 0) return 'nenhum caiaque no mar';
+    const semSinal = this.contar('sem-sinal');
+    return `${n} ${n === 1 ? 'caiaque' : 'caiaques'} · ${this.contar('ao-vivo')} ao vivo` +
+      (semSinal ? ` · ${semSinal} sem sinal` : '');
+  }
+
+  contar(estado: EstadoSinal): number {
+    return this.caiaques.filter(c => (c.estado ?? 'ao-vivo') === estado).length;
+  }
+
+  porId(_: number, c: Caiaque): number { return c.id; }
+
+  ha(c: Caiaque): string { return textoHa(c.ultimoSinal, Date.now()); }
+
+  noMar(c: Caiaque): string {
+    const min = Math.max(0, Math.floor((Date.now() - c.primeiroSinal) / 60_000));
+    return `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`;
+  }
+
+  /** O mapa muda de tamanho quando o detalhe abre/fecha no computador. */
+  private reajustarMapa(): void {
+    setTimeout(() => this.map?.invalidateSize(), 0);
+  }
+
   selecionarCaiaque(caiaque: Caiaque): void {
     this.caiaaqueSelecionado = caiaque;
-
-    const ponto = this.map.project([caiaque.lat, caiaque.lng], 15);
-    ponto.y += window.innerHeight * 0.18;
-    const coordAjustada = this.map.unproject(ponto, 15);
-
-    this.map.flyTo(coordAjustada, 15, { duration: 0.8 });
+    this.reajustarMapa();
+    // No celular o mapa fica acima da lista, então a posição é centralizada sem deslocamento.
+    this.map.flyTo([caiaque.lat, caiaque.lng], 15, { duration: 0.8 });
   }
 
   fecharPainel(): void {
     this.caiaaqueSelecionado = null;
+    this.reajustarMapa();
   }
 
   encerrarPasseio(caiaque: Caiaque): void {
     this.caiaqueService.encerrarPasseio(caiaque.id);
     this.caiaaqueSelecionado = null;
+    this.reajustarMapa();
   }
 
   centralizarMapa(): void {
@@ -260,6 +307,7 @@ export class MapaComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    if (this.relogio) clearInterval(this.relogio);
     this.sub?.unsubscribe();
     this.subConexao?.unsubscribe();
     this.subNotif?.unsubscribe();

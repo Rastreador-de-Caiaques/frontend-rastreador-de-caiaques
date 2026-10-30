@@ -21,7 +21,7 @@ describe('estadoSinal', () => {
 
   it('é "sem-sinal" depois de 2 min', () => {
     expect(estadoSinal(AGORA - min(2) - 1, AGORA)).toBe('sem-sinal');
-    expect(estadoSinal(AGORA - min(59), AGORA)).toBe('sem-sinal');
+    expect(estadoSinal(AGORA - min(29), AGORA)).toBe('sem-sinal');
   });
 
   it('é "encerrado" depois do prazo de encerramento automático', () => {
