@@ -203,3 +203,54 @@
   font-size: 0.7rem;
   color: var(--text-muted);
 }
+
+// Estado do sinal: texto + forma + cor (não depende só de cor).
+.estado-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.7rem 0.9rem;
+  border-radius: 12px;
+  background: #e4f4ec;
+  color: #0a6a4a;
+  border: 1.5px solid #b7dccd;
+  font-weight: 700;
+  font-size: 0.85rem;
+
+  .estado-tempo {
+    font-family: 'Space Mono', monospace;
+    font-weight: 400;
+    font-size: 0.78rem;
+  }
+
+  &.estado-banner--fraco {
+    background: #fff3dc;
+    color: #7d4a00;
+    border: 1.5px dashed #9a5b00;
+  }
+
+  &.estado-banner--sem-sinal {
+    background: #fde7e4;
+    color: #a3281b;
+    border: 1.5px solid #b3261e;
+  }
+}
+
+.btn-encerrar {
+  width: 100%;
+  min-height: 48px;
+  margin: 0.25rem 0 0.5rem;
+  border-radius: 12px;
+  border: 0;
+  background: #12212e;
+  color: #ffffff;
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 0.95rem;
+  cursor: pointer;
+
+  &:active {
+    transform: scale(0.98);
+  }
+}

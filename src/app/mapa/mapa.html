@@ -39,9 +39,12 @@
       class="chip"
       *ngFor="let c of caiaques"
       [class.ativo]="caiaaqueSelecionado?.id === c.id"
+      [class.chip--fraco]="c.estado === 'fraco'"
+      [class.chip--sem-sinal]="c.estado === 'sem-sinal'"
+      [attr.aria-label]="'Caiaque ' + c.id + (c.estado === 'sem-sinal' ? ', sem sinal' : c.estado === 'fraco' ? ', sinal fraco' : '')"
       (click)="selecionarCaiaque(c)"
     >
-      {{ c.id }}
+      {{ c.id }}{{ c.estado === 'sem-sinal' ? ' !' : '' }}
     </button>
     <button class="chip chip-center" (click)="centralizarMapa()">
       ⊙
@@ -51,6 +54,7 @@
   <app-painel-caiaque
     [caiaque]="caiaaqueSelecionado"
     (fechar)="fecharPainel()"
+    (encerrar)="encerrarPasseio($event)"
   ></app-painel-caiaque>
 
   <app-painel-status

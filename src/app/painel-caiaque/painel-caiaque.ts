@@ -1,6 +1,7 @@
 import { Component, Input, Output, EventEmitter, OnChanges, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Caiaque } from '../services/caiaques.service';
+import { textoHa } from '../services/estado-sinal';
 
 @Component({
   selector: 'app-painel-caiaque',
@@ -13,6 +14,7 @@ export class PainelCaiaque implements OnChanges, OnInit, OnDestroy {
   @Input() caiaque: Caiaque | null = null;
   @Output() fechar = new EventEmitter<void>();
   @Output() mostrarRota = new EventEmitter<Caiaque>();
+  @Output() encerrar = new EventEmitter<Caiaque>();
 
   visivel = false;
   private tickTimer: ReturnType<typeof setInterval> | null = null;
@@ -41,6 +43,22 @@ export class PainelCaiaque implements OnChanges, OnInit, OnDestroy {
     const m = Math.floor((diff % 3600000) / 60000).toString().padStart(2, '0');
     const s = Math.floor((diff % 60000) / 1000).toString().padStart(2, '0');
     return `${h}:${m}:${s}`;
+  }
+
+  get rotuloEstado(): string {
+    switch (this.caiaque?.estado) {
+      case 'fraco':     return '◐ Sinal fraco';
+      case 'sem-sinal': return '! Sem sinal';
+      default:          return '● Ao vivo';
+    }
+  }
+
+  get textoUltimo(): string {
+    return this.caiaque ? textoHa(this.caiaque.ultimoSinal, Date.now()) : '';
+  }
+
+  encerrarPasseio(): void {
+    if (this.caiaque) this.encerrar.emit(this.caiaque);
   }
 
   formatarData(iso: string): string {
