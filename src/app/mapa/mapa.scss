@@ -1,8 +1,21 @@
+// Celular (opção B): cabeçalho, mapa curto no alto e a frota em lista embaixo.
+// Computador do balcão (opção D): lista | mapa | detalhe fixo à direita.
 .mapa-container {
+    --topo: 56px;
     position: relative;
     width: 100%;
     height: 100svh;
     overflow: hidden;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: var(--topo) 40svh minmax(0, 1fr);
+    grid-template-areas: "topo" "mapa" "frota";
+}
+
+.area-mapa {
+    grid-area: mapa;
+    position: relative;
+    min-height: 0;
 }
 
 #mapa {
@@ -13,11 +26,260 @@
     z-index: 1;
 }
 
-.header {
+.btn-centralizar {
     position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
+    right: 0.75rem;
+    top: 0.75rem;
+    z-index: 50;
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    border: 1.5px solid var(--accent);
+    background: var(--surface);
+    color: var(--accent);
+    font-size: 1.2rem;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+
+.faixa-alerta {
+    position: absolute;
+    left: 0.75rem;
+    right: 4rem;
+    top: 0.75rem;
+    z-index: 50;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.25rem 0.6rem;
+    text-align: left;
+    padding: 0.6rem 0.85rem;
+    border: 0;
+    border-radius: 12px;
+    background: #b3261e;
+    color: #ffffff;
+    font-family: inherit;
+    font-size: 0.78rem;
+    line-height: 1.35;
+    cursor: pointer;
+    box-shadow: 0 4px 14px rgba(179, 38, 30, 0.35);
+
+    .faixa-mais {
+        margin-left: auto;
+        font-weight: 700;
+        background: rgba(255, 255, 255, 0.22);
+        border-radius: 999px;
+        padding: 0.1rem 0.5rem;
+    }
+}
+
+// ─── Frota (lista) ───────────────────────────────────────────────────────────
+
+.frota {
+    grid-area: frota;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg);
+    border-top: 1px solid var(--border);
+}
+
+.frota-topo {
+    padding: 0.7rem 1rem 0.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.frota-titulo {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.frota-nome {
+    font-weight: 700;
+    font-size: 1.05rem;
+}
+
+.frota-resumo {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.filtros {
+    display: flex;
+    gap: 0.4rem;
+}
+
+.filtro {
+    min-height: 36px;
+    padding: 0 0.8rem;
+    border-radius: 999px;
+    border: 1.5px solid var(--border);
+    background: var(--surface);
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: 0.74rem;
+    font-weight: 700;
+    cursor: pointer;
+
+    &.filtro--ativo {
+        background: var(--text-primary);
+        border-color: var(--text-primary);
+        color: var(--bg);
+    }
+
+    &.filtro--alerta:not(.filtro--ativo) {
+        color: var(--alerta-fg);
+        border-color: var(--alerta-borda);
+    }
+}
+
+.frota-lista {
+    flex: 1 1 0;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 0.25rem 1rem 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.secao {
+    margin: 0.5rem 0 0;
+    font-size: 0.68rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+
+    &.secao--alerta { color: var(--alerta-fg); }
+}
+
+.vazio {
+    margin-top: 1rem;
+    font-size: 0.8rem;
+    line-height: 1.5;
+    color: var(--text-muted);
+}
+
+.linha {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    width: 100%;
+    min-height: 60px;
+    padding: 0.6rem 0.75rem;
+    text-align: left;
+    border-radius: 14px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text-primary);
+    font-family: inherit;
+    cursor: pointer;
+
+    &.linha--ativa {
+        border: 1.5px solid var(--accent);
+    }
+
+    &.linha--sem-sinal {
+        background: var(--alerta-bg);
+        border: 1.5px solid var(--alerta-borda);
+    }
+}
+
+.num {
+    flex: 0 0 auto;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    background: #0a7c5a;
+    color: #ffffff;
+
+    // Forma e texto distinguem os estados; a cor só reforça.
+    &.num--fraco {
+        background: var(--fraco-bg);
+        color: var(--fraco-fg);
+        border: 2px dashed var(--fraco-borda);
+    }
+
+    &.num--sem-sinal {
+        background: #c9d2da;
+        color: #4a5a69;
+    }
+}
+
+.linha-texto {
+    flex: 1 1 0;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.linha-titulo {
+    font-weight: 700;
+    font-size: 0.86rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.linha-sub {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+}
+
+.selo-estado {
+    flex: 0 0 auto;
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--ok-fg);
+
+    &.selo-estado--fraco { color: var(--fraco-fg); }
+
+    &.selo-estado--sem-sinal {
+        color: var(--alerta-fg);
+        border: 1.5px solid var(--alerta-borda);
+        border-radius: 999px;
+        padding: 0.2rem 0.5rem;
+    }
+}
+
+// ─── Computador do balcão ────────────────────────────────────────────────────
+
+@media (min-width: 1024px) {
+    .mapa-container {
+        --topo: 60px;
+        grid-template-columns: 340px minmax(0, 1fr);
+        grid-template-rows: var(--topo) minmax(0, 1fr);
+        grid-template-areas: "topo topo" "frota mapa";
+    }
+
+    .frota {
+        border-top: 0;
+        border-right: 1px solid var(--border);
+        background: var(--surface);
+    }
+
+    // Com um caiaque selecionado, o detalhe ocupa a coluna da direita.
+    .mapa-container.com-detalhe .area-mapa {
+        margin-right: 320px;
+    }
+
+    .faixa-alerta {
+        right: 4.5rem;
+        max-width: 640px;
+    }
+}
+
+.header {
+    grid-area: topo;
+    position: relative;
     z-index: 100;
     background: var(--surface);
     padding: 0.75rem 1.25rem;
@@ -76,65 +338,6 @@
     color: var(--text-muted);
 }
 
-.chips-container {
-    position: absolute;
-    top: calc(56px + 0.75rem);
-    left: 0;
-    right: 0;
-    z-index: 100;
-    display: flex;
-    gap: 0.5rem;
-    padding: 0 1rem;
-    overflow-x: auto;
-    scrollbar-width: none;
-
-    &::-webkit-scrollbar {
-        display: none;
-    }
-}
-
-.chip {
-    background: var(--surface);
-    border: 1.5px solid var(--border);
-    color: var(--text-primary);
-    font-family: 'Space Mono', monospace;
-    font-weight: 700;
-    font-size: 0.82rem;
-    padding: 0.35rem 0.85rem;
-    border-radius: 999px;
-    cursor: pointer;
-    white-space: nowrap;
-    transition: all 0.2s;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-
-    &.ativo {
-        background: var(--accent);
-        border-color: var(--accent);
-        color: var(--bg);
-    }
-
-    &:active {
-        transform: scale(0.95);
-    }
-
-    // Sinal fraco: borda tracejada. Sem sinal: cinza com "!" no texto (não depende só de cor).
-    &.chip--fraco {
-        border-style: dashed;
-        border-color: #9a5b00;
-        color: #7d4a00;
-    }
-
-    &.chip--sem-sinal {
-        background: #fde7e4;
-        border-color: #b3261e;
-        color: #a3281b;
-    }
-}
-
-.chip-center {
-    padding: 0.35rem 0.75rem;
-}
-
 @keyframes pulso {
     0% {
         transform: translateX(-50%) scale(1);
@@ -151,7 +354,7 @@
 
 .notificacoes {
     position: absolute;
-    top: calc(56px + 0.75rem);
+    top: calc(var(--topo) + 4.5rem);
     right: 1rem;
     z-index: 200;
     display: flex;
@@ -213,4 +416,8 @@
     50% {
         opacity: 0.3;
     }
+}
+app-painel-caiaque,
+app-painel-status {
+    display: contents;
 }
