@@ -116,6 +116,19 @@
     &:active {
         transform: scale(0.95);
     }
+
+    // Sinal fraco: borda tracejada. Sem sinal: cinza com "!" no texto (não depende só de cor).
+    &.chip--fraco {
+        border-style: dashed;
+        border-color: #9a5b00;
+        color: #7d4a00;
+    }
+
+    &.chip--sem-sinal {
+        background: #fde7e4;
+        border-color: #b3261e;
+        color: #a3281b;
+    }
 }
 
 .chip-center {

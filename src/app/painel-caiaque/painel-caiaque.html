@@ -15,6 +15,16 @@
   </div>
 
   <div class="painel-body">
+    <div
+      class="estado-banner"
+      [class.estado-banner--fraco]="caiaque.estado === 'fraco'"
+      [class.estado-banner--sem-sinal]="caiaque.estado === 'sem-sinal'"
+      role="status"
+    >
+      <span class="estado-rotulo">{{ rotuloEstado }}</span>
+      <span class="estado-tempo">último sinal {{ textoUltimo }}</span>
+    </div>
+
     <div class="info-card">
       <span class="info-label">Última atualização</span>
       <span class="info-valor">{{ formatarData(caiaque.ultimaAtualizacao) }}</span>
@@ -24,6 +34,8 @@
       <span class="info-label">Tempo no mar</span>
       <span class="info-valor">{{ tempoNoMar }}</span>
     </div>
+
+    <button type="button" class="btn-encerrar" (click)="encerrarPasseio()">Encerrar passeio</button>
 
     <div class="rota-section">
       <span class="info-label">Percurso do dia</span>

@@ -1,9 +1,10 @@
-import { Injectable, OnDestroy, inject } from '@angular/core';
-import { webSocket, WebSocketSubject } from 'rxjs/webSocket';
+import { Injectable, InjectionToken, OnDestroy, inject } from '@angular/core';
+import { webSocket, WebSocketSubject, WebSocketSubjectConfig } from 'rxjs/webSocket';
 import { BehaviorSubject, Observable, Subject, timer } from 'rxjs';
 import { retry } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
 import { CadastroService } from './cadastro.service';
+import { EstadoSinal, estadoSinal, textoHa } from './estado-sinal';
 
 export interface PontoRota {
   lat: number;
@@ -27,6 +28,7 @@ export interface SessaoCaiaque {
   historico: PontoHistorico[]; // array acumulado para rastro e tempo no mar
   primeiroSinal: number;       // timestamp do primeiro ponto recebido
   ultimoSinal: number;         // timestamp do último ponto recebido
+  estado?: EstadoSinal;        // calculado a cada emissão a partir de ultimoSinal (não depende do que está salvo)
 }
 
 export type Caiaque = SessaoCaiaque;
@@ -54,6 +56,11 @@ type WsMensagem =
   | { tipo: 'conectado' }
   | { id: number; lat: number | null; lng: number | null; bat?: number; vel?: number };
 
+/** Cria o WebSocket do servidor. Injetável para os testes não abrirem conexão real. */
+export const CRIAR_SOCKET = new InjectionToken<
+  <T>(config: WebSocketSubjectConfig<T>) => WebSocketSubject<T>
+>('CRIAR_SOCKET', { providedIn: 'root', factory: () => webSocket });
+
 @Injectable({ providedIn: 'root' })
 export class CaiaqueService implements OnDestroy {
 
@@ -69,7 +76,14 @@ export class CaiaqueService implements OnDestroy {
   private readonly STORAGE_KEY        = 'rastreador_sessoes';
   private readonly DEBOUNCE_SAVE_MS   = 5000;
   private readonly DISTANCIA_MINIMA_M = 5;
+  private readonly REAVALIAR_MS      = 5000;
   private saveDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+  private reavaliarTimer: ReturnType<typeof setInterval> | null = null;
+  private estadoNotificado = new Map<number, EstadoSinal>();
+  /** Enquanto a tela não está ligada ao servidor, não chegam pacotes de ninguém: os estados congelam. */
+  private desconectadoEm: number | null = Date.now();
+  private semAlertaAte = 0;
+  private readonly CARENCIA_APOS_RECONEXAO_MS = 15_000;
 
   private subject$$        = new BehaviorSubject<CaiaqueResponse>({ caiaques: [] });
   private connected$$      = new BehaviorSubject<boolean>(false);
@@ -84,22 +98,27 @@ export class CaiaqueService implements OnDestroy {
   statusCaiaques$: Observable<StatusCaiaque[]>                     = this.statusCaiaques$$.asObservable();
 
   private readonly cadastro = inject(CadastroService);
+  private readonly criarSocket = inject(CRIAR_SOCKET);
 
   constructor() {
     this.carregarDoStorage();
     this.cadastro.rotulos$.subscribe(() => this.atualizarNomes());
+    this.reavaliarTimer = setInterval(() => this.reavaliar(), this.REAVALIAR_MS);
 
-    this.socket$ = webSocket<WsMensagem>({
+    this.socket$ = this.criarSocket<WsMensagem>({
       url: this.WS_URL,
       deserializer: msg => JSON.parse(msg.data) as WsMensagem,
       openObserver: {
         next: () => {
+          this.desconectadoEm = null;
+          this.semAlertaAte = Date.now() + this.CARENCIA_APOS_RECONEXAO_MS;
           this.connected$$.next(true);
           this.emitir('servidor', 'Servidor conectado', 'sucesso');
         }
       },
       closeObserver: {
         next: () => {
+          this.desconectadoEm = Date.now();
           this.connected$$.next(false);
           this.espBase$$.next('offline');
           this.emitir('servidor', 'Servidor desconectado', 'erro');
@@ -115,74 +134,150 @@ export class CaiaqueService implements OnDestroy {
         }
       })
     ).subscribe({
-      next: msg => {
-        // Heartbeat da base ESP — independente de posição GPS
-        if ('tipo' in msg) {
-          if (msg.tipo === 'base') this.sinalizarBase();
-          return;
-        }
-
-        const pos = msg;
-        if (pos.id == null) return;
-
-        // Posição do caiaque também confirma base ativa
-        this.sinalizarBase();
-
-        if (!this.kayaksConhecidos.has(pos.id)) {
-          this.kayaksConhecidos.add(pos.id);
-          this.emitir('caiaque', `Caiaque ${pos.id} conectado`, 'info');
-        }
-
-        const status: StatusCaiaque = {
-          id:                pos.id,
-          nome:              this.cadastro.rotulo(pos.id),
-          temGPS:            pos.lat != null && pos.lng != null,
-          ultimaAtualizacao: new Date(),
-        };
-        this.statusMap.set(pos.id, status);
-        this.statusCaiaques$$.next([...this.statusMap.values()]);
-
-        if (pos.lat == null || pos.lng == null) return;
-
-        const agora           = Date.now();
-        const sessaoExistente = this.estado.get(pos.id);
-
-        if (sessaoExistente) {
-          const dist = this.distanciaMetros(
-            sessaoExistente.lat, sessaoExistente.lng, pos.lat, pos.lng
-          );
-          if (dist < this.DISTANCIA_MINIMA_M) return;
-        }
-
-        const hora = new Date(agora).toLocaleTimeString('pt-BR', {
-          hour: '2-digit', minute: '2-digit', second: '2-digit'
-        });
-        const novoPonto: PontoHistorico = { lat: pos.lat, lng: pos.lng, timestamp: agora };
-
-        const novaSessao: SessaoCaiaque = {
-          id:                pos.id,
-          nome:              this.cadastro.rotulo(pos.id),
-          lat:               pos.lat,
-          lng:               pos.lng,
-          ultimaAtualizacao: new Date(agora).toISOString(),
-          rota:              [...(sessaoExistente?.rota ?? []), { lat: pos.lat, lng: pos.lng, hora }],
-          historico:         [...(sessaoExistente?.historico ?? []), novoPonto],
-          primeiroSinal:     sessaoExistente?.primeiroSinal ?? agora,
-          ultimoSinal:       agora,
-        };
-
-        this.estado.set(pos.id, novaSessao);
-        this.subject$$.next({ caiaques: [...this.estado.values()] });
-        this.agendarSalvamento();
-      },
+      next: msg => this.receber(msg),
       error: err => console.error('[WS] Erro:', err)
     });
+  }
+
+  /** Trata um pacote recebido do servidor (posição de caiaque ou batimento da base). */
+  receber(msg: WsMensagem): void {
+    // Heartbeat da base ESP — independente de posição GPS
+    if ('tipo' in msg) {
+      if (msg.tipo === 'base') this.sinalizarBase();
+      return;
+    }
+
+    const pos = msg;
+    if (pos.id == null) return;
+
+    // Posição do caiaque também confirma base ativa
+    this.sinalizarBase();
+
+    if (!this.kayaksConhecidos.has(pos.id)) {
+      this.kayaksConhecidos.add(pos.id);
+      this.emitir('caiaque', `Caiaque ${pos.id} conectado`, 'info');
+    }
+
+    const status: StatusCaiaque = {
+      id:                pos.id,
+      nome:              this.cadastro.rotulo(pos.id),
+      temGPS:            pos.lat != null && pos.lng != null,
+      ultimaAtualizacao: new Date(),
+    };
+    this.statusMap.set(pos.id, status);
+    this.statusCaiaques$$.next([...this.statusMap.values()]);
+
+    if (pos.lat == null || pos.lng == null) return;
+
+    const agora           = Date.now();
+    const sessaoExistente = this.estado.get(pos.id);
+
+    if (sessaoExistente) {
+      const dist = this.distanciaMetros(
+        sessaoExistente.lat, sessaoExistente.lng, pos.lat, pos.lng
+      );
+      if (dist < this.DISTANCIA_MINIMA_M) {
+        // Parado, mas vivo: não grava ponto novo, porém renova o último sinal
+        // (senão um caiaque parado viraria "sem sinal").
+        this.estado.set(pos.id, {
+          ...sessaoExistente,
+          ultimaAtualizacao: new Date(agora).toISOString(),
+          ultimoSinal: agora,
+        });
+        this.publicar();
+        this.agendarSalvamento();
+        return;
+      }
+    }
+
+    const hora = new Date(agora).toLocaleTimeString('pt-BR', {
+      hour: '2-digit', minute: '2-digit', second: '2-digit'
+    });
+    const novoPonto: PontoHistorico = { lat: pos.lat, lng: pos.lng, timestamp: agora };
+
+    const novaSessao: SessaoCaiaque = {
+      id:                pos.id,
+      nome:              this.cadastro.rotulo(pos.id),
+      lat:               pos.lat,
+      lng:               pos.lng,
+      ultimaAtualizacao: new Date(agora).toISOString(),
+      rota:              [...(sessaoExistente?.rota ?? []), { lat: pos.lat, lng: pos.lng, hora }],
+      historico:         [...(sessaoExistente?.historico ?? []), novoPonto],
+      primeiroSinal:     sessaoExistente?.primeiroSinal ?? agora,
+      ultimoSinal:       agora,
+    };
+
+    this.estado.set(pos.id, novaSessao);
+    this.publicar();
+    this.agendarSalvamento();
+  }
+
+  /** "Agora" para o cálculo do sinal: congelado no momento em que a conexão com o servidor caiu. */
+  private agoraEfetivo(): number {
+    return this.desconectadoEm ?? Date.now();
+  }
+
+  /** Emite as sessões com o estado do sinal calculado agora. */
+  private publicar(): void {
+    const agora = this.agoraEfetivo();
+    this.subject$$.next({
+      caiaques: [...this.estado.values()].map(s => ({ ...s, estado: estadoSinal(s.ultimoSinal, agora) })),
+    });
+  }
+
+  /** Roda de tempos em tempos: avisa mudanças de estado e tira do mapa quem encerrou. */
+  private reavaliar(): void {
+    const agora = this.agoraEfetivo();
+    const podeAvisar = this.desconectadoEm === null && Date.now() >= this.semAlertaAte;
+    let mudou = false;
+
+    this.estado.forEach((sessao, id) => {
+      const atual = estadoSinal(sessao.ultimoSinal, agora);
+      const anterior = this.estadoNotificado.get(id) ?? 'ao-vivo';
+
+      if (atual === 'encerrado') {
+        this.removerSessao(id);
+        mudou = true;
+        return;
+      }
+      if (!podeAvisar) return;
+      if (atual === 'sem-sinal' && anterior !== 'sem-sinal') {
+        this.emitir('caiaque', `${sessao.nome} sem sinal ${textoHa(sessao.ultimoSinal, agora)}`, 'erro');
+      }
+      if (atual === 'ao-vivo' && anterior === 'sem-sinal') {
+        this.emitir('caiaque', `${sessao.nome} voltou a enviar sinal`, 'sucesso');
+      }
+      this.estadoNotificado.set(id, atual);
+    });
+
+    this.publicar();
+    if (mudou) {
+      this.statusCaiaques$$.next([...this.statusMap.values()]);
+      this.agendarSalvamento();
+    }
+  }
+
+  private removerSessao(id: number): void {
+    this.estado.delete(id);
+    this.statusMap.delete(id);
+    this.kayaksConhecidos.delete(id);
+    this.estadoNotificado.delete(id);
+  }
+
+  /** O operador encerra o passeio: sai do mapa e do status; o caiaque volta se enviar sinal de novo. */
+  public encerrarPasseio(id: number): void {
+    const nome = this.estado.get(id)?.nome ?? `Caiaque ${id}`;
+    this.removerSessao(id);
+    this.publicar();
+    this.statusCaiaques$$.next([...this.statusMap.values()]);
+    this.agendarSalvamento();
+    this.emitir('caiaque', `${nome}: passeio encerrado`, 'info');
   }
 
   private atualizarNomes(): void {
     this.estado.forEach((sessao, id) => this.estado.set(id, { ...sessao, nome: this.cadastro.rotulo(id) }));
     this.statusMap.forEach((status, id) => this.statusMap.set(id, { ...status, nome: this.cadastro.rotulo(id) }));
-    this.subject$$.next({ caiaques: [...this.estado.values()] });
+    this.publicar();
     this.statusCaiaques$$.next([...this.statusMap.values()]);
   }
 
@@ -191,7 +286,10 @@ export class CaiaqueService implements OnDestroy {
       const raw = localStorage.getItem(this.STORAGE_KEY);
       if (!raw) return;
       const sessoes: SessaoCaiaque[] = JSON.parse(raw);
-      sessoes.forEach(s => {
+      const agora = Date.now();
+      sessoes
+        .filter(s => estadoSinal(s.ultimoSinal, agora) !== 'encerrado')
+        .forEach(s => {
         this.estado.set(s.id, s);
         this.statusMap.set(s.id, {
           id: s.id,
@@ -201,7 +299,7 @@ export class CaiaqueService implements OnDestroy {
         });
         this.kayaksConhecidos.add(s.id);
       });
-      this.subject$$.next({ caiaques: [...this.estado.values()] });
+      this.publicar();
       this.statusCaiaques$$.next([...this.statusMap.values()]);
     } catch (e) {
       console.warn('[Storage] Erro ao carregar sessões:', e);
@@ -255,6 +353,7 @@ export class CaiaqueService implements OnDestroy {
   ngOnDestroy(): void {
     if (this.baseTimer) clearTimeout(this.baseTimer);
     if (this.saveDebounceTimer) clearTimeout(this.saveDebounceTimer);
+    if (this.reavaliarTimer) clearInterval(this.reavaliarTimer);
     this.socket$.complete();
   }
 }

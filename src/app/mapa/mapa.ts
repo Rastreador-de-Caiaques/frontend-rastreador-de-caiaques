@@ -7,6 +7,7 @@ import { Subscription } from 'rxjs';
 import { CaiaqueService, Caiaque, SessaoCaiaque, Notificacao } from '../services/caiaques.service';
 import { PainelCaiaque } from '../painel-caiaque/painel-caiaque';
 import { PainelStatus } from '../painel-status/painel-status';
+import { EstadoSinal } from '../services/estado-sinal';
 
 interface NotificacaoAtiva extends Notificacao {
   saindo: boolean;
@@ -24,6 +25,7 @@ export class MapaComponent implements OnInit, AfterViewInit, OnDestroy {
   private map!: L.Map;
   private marcadores: Map<number, L.Marker> = new Map();
   private rastros:    Map<number, L.Polyline> = new Map();
+  private estadosMarcador: Map<number, EstadoSinal> = new Map();
   private sub!: Subscription;
 
   private readonly CORES_RASTRO = [
@@ -68,7 +70,7 @@ export class MapaComponent implements OnInit, AfterViewInit, OnDestroy {
     L.control.zoom({ position: 'bottomright' }).addTo(this.map);
   }
 
-  private criarIconeCaiaque(id: number): L.DivIcon {
+  private criarIconeCaiaque(id: number, estado: EstadoSinal = 'ao-vivo'): L.DivIcon {
     const cores = [
       { casco: '#2d9e4f', borda: '#4fc970', escuro: '#1a5c32', highlight: '#6ade8a' },
       { casco: '#0077b6', borda: '#48cae4', escuro: '#023e8a', highlight: '#90e0ef' },
@@ -104,8 +106,9 @@ export class MapaComponent implements OnInit, AfterViewInit, OnDestroy {
           position: relative;
           width: 64px;
           height: 64px;
-          filter: drop-shadow(0 3px 6px rgba(0,0,0,0.28));
-        ">${svg}</div>
+          opacity: ${estado === 'ao-vivo' ? 1 : estado === 'fraco' ? 0.65 : 0.85};
+          filter: ${estado === 'sem-sinal' ? 'grayscale(1) ' : ''}drop-shadow(0 3px 6px rgba(0,0,0,0.28));
+        ">${svg}${estado === 'sem-sinal' ? this.selo('!', '#b3261e') : ''}</div>
       `,
       iconSize:    [64, 64],
       iconAnchor:  [32, 32],
@@ -113,10 +116,20 @@ export class MapaComponent implements OnInit, AfterViewInit, OnDestroy {
     });
   }
 
+  /** Selo redondo no canto do marcador (usado para "sem sinal"). */
+  private selo(texto: string, cor: string): string {
+    return `<span style="position:absolute;right:4px;top:2px;width:20px;height:20px;border-radius:50%;
+      background:${cor};border:2px solid #fff;color:#fff;font:700 13px/16px sans-serif;text-align:center">${texto}</span>`;
+  }
+
   private iniciarPolling(): void {
     this.sub = this.caiaqueService.caiaques$.subscribe(data => {
       this.caiaques = data.caiaques;
       this.ultimaSync = new Date();
+      if (this.caiaaqueSelecionado) {
+        // O painel acompanha a versão mais recente (ou fecha se o passeio foi encerrado).
+        this.caiaaqueSelecionado = data.caiaques.find(c => c.id === this.caiaaqueSelecionado!.id) ?? null;
+      }
       this.atualizarMarcadores();
       this.cdr.detectChanges();
     });
@@ -146,20 +159,40 @@ export class MapaComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private atualizarMarcadores(): void {
+    // Tira do mapa quem não está mais na lista (passeio encerrado).
+    const ativos = new Set(this.caiaques.map(c => c.id));
+    [...this.marcadores.keys()].filter(id => !ativos.has(id)).forEach(id => {
+      this.marcadores.get(id)?.remove();
+      this.marcadores.delete(id);
+      this.rastros.get(id)?.remove();
+      this.rastros.delete(id);
+      this.estadosMarcador.delete(id);
+    });
+
     this.caiaques.forEach(caiaque => {
       const pos: L.LatLngExpression = [caiaque.lat, caiaque.lng];
+      const estado: EstadoSinal = caiaque.estado ?? 'ao-vivo';
 
       if (this.marcadores.has(caiaque.id)) {
-        this.marcadores.get(caiaque.id)!.setLatLng(pos);
+        const marker = this.marcadores.get(caiaque.id)!;
+        marker.setLatLng(pos);
+        if (this.estadosMarcador.get(caiaque.id) !== estado) {
+          marker.setIcon(this.criarIconeCaiaque(caiaque.id, estado));
+        }
       } else {
         const marker = L.marker(pos, {
-          icon: this.criarIconeCaiaque(caiaque.id)
+          icon: this.criarIconeCaiaque(caiaque.id, estado)
         })
           .addTo(this.map)
-          .on('click', () => this.selecionarCaiaque(caiaque));
+          .on('click', () => {
+            const atual = this.caiaques.find(c => c.id === caiaque.id);
+            if (atual) this.selecionarCaiaque(atual);
+          });
 
         this.marcadores.set(caiaque.id, marker);
       }
+      this.estadosMarcador.set(caiaque.id, estado);
+      this.rastros.get(caiaque.id)?.setStyle({ opacity: estado === 'sem-sinal' ? 0.3 : 0.75 });
 
       this.atualizarRastro(caiaque);
     });
@@ -199,6 +232,11 @@ export class MapaComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   fecharPainel(): void {
+    this.caiaaqueSelecionado = null;
+  }
+
+  encerrarPasseio(caiaque: Caiaque): void {
+    this.caiaqueService.encerrarPasseio(caiaque.id);
     this.caiaaqueSelecionado = null;
   }
 
