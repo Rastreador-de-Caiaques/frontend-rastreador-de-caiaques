@@ -8,6 +8,7 @@ import { CaiaqueService, Caiaque, SessaoCaiaque, Notificacao } from '../services
 import { PainelCaiaque } from '../painel-caiaque/painel-caiaque';
 import { PainelStatus } from '../painel-status/painel-status';
 import { EstadoSinal, textoHa } from '../services/estado-sinal';
+import { TemaService } from '../services/tema.service';
 
 interface NotificacaoAtiva extends Notificacao {
   saindo: boolean;
@@ -46,7 +47,8 @@ export class MapaComponent implements OnInit, AfterViewInit, OnDestroy {
 
   constructor(
     private caiaqueService: CaiaqueService,
-    private cdr: ChangeDetectorRef
+    private cdr: ChangeDetectorRef,
+    readonly tema: TemaService
   ) {}
 
   ngOnInit(): void {}
@@ -294,6 +296,10 @@ export class MapaComponent implements OnInit, AfterViewInit, OnDestroy {
       this.caiaques.map(c => [c.lat, c.lng] as L.LatLngExpression)
     );
     this.map.fitBounds(bounds, { padding: [60, 60] });
+  }
+
+  alternarTema(): void {
+    this.tema.alternar();
   }
 
   abrirPainelStatus(): void {

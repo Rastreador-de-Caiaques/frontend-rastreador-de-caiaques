@@ -20,26 +20,31 @@
   --mapa-filtro: brightness(1.05) saturate(0.85);
 }
 
-// "Segue o aparelho": o tema escuro entra sozinho conforme o sistema.
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg:           #0f1a24;
-    --surface:      rgba(22, 34, 46, 0.96);
-    --surface-2:    #1d2d3b;
-    --border:       #2f4458;
-    --accent:       #48b4e8;
-    --accent-dim:   rgba(72, 180, 232, 0.35);
-    --text-primary: #e8f0f7;
-    --text-muted:   #9db3c5;
+@mixin tema-escuro {
+  color-scheme: dark;
+  --bg:           #0f1a24;
+  --surface:      rgba(22, 34, 46, 0.96);
+  --surface-2:    #1d2d3b;
+  --border:       #2f4458;
+  --accent:       #48b4e8;
+  --accent-dim:   rgba(72, 180, 232, 0.35);
+  --text-primary: #e8f0f7;
+  --text-muted:   #9db3c5;
 
-    --ok-bg:     #11382c;  --ok-fg:     #7fe0b8;  --ok-borda:     #1f6a52;
-    --fraco-bg:  #3a2c0f;  --fraco-fg:  #f2c26b;  --fraco-borda:  #c58a2b;
-    --alerta-bg: #4a1d19;  --alerta-fg: #ffb4ab;  --alerta-borda: #e5655b;
-    --botao-escuro-bg: #e8f0f7;  --botao-escuro-fg: #0f1a24;
-    --mapa-agua: #0f1a24;
-    --mapa-filtro: invert(1) hue-rotate(180deg) brightness(0.85) contrast(0.9) saturate(0.6);
-  }
+  --ok-bg:     #11382c;  --ok-fg:     #7fe0b8;  --ok-borda:     #1f6a52;
+  --fraco-bg:  #3a2c0f;  --fraco-fg:  #f2c26b;  --fraco-borda:  #c58a2b;
+  --alerta-bg: #4a1d19;  --alerta-fg: #ffb4ab;  --alerta-borda: #e5655b;
+  --botao-escuro-bg: #e8f0f7;  --botao-escuro-fg: #0f1a24;
+  --mapa-agua: #0f1a24;
+  --mapa-filtro: invert(1) hue-rotate(180deg) brightness(0.85) contrast(0.9) saturate(0.6);
 }
+
+// Sem escolha salva, o tema segue o aparelho; o botão do cabeçalho grava a escolha em data-tema.
+@media (prefers-color-scheme: dark) {
+  :root:not([data-tema='claro']) { @include tema-escuro; }
+}
+:root[data-tema='escuro'] { @include tema-escuro; }
+:root[data-tema='claro'] { color-scheme: light; }
 
 *, *::before, *::after {
   box-sizing: border-box;

@@ -304,6 +304,37 @@
     }
 }
 
+.header-acoes {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.btn-tema {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    min-height: 40px;
+    padding: 0.35rem 0.7rem;
+    border-radius: 999px;
+    border: 1.5px solid var(--border);
+    background: var(--surface-2);
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: 0.75rem;
+    font-weight: 700;
+    cursor: pointer;
+
+    &:active { transform: scale(0.96); }
+
+    .btn-tema-icone { font-size: 1.05rem; line-height: 1; }
+    .btn-tema-texto { display: none; }
+
+    @media (min-width: 520px) {
+        .btn-tema-texto { display: inline; }
+    }
+}
+
 .header-status {
     display: flex;
     align-items: center;
