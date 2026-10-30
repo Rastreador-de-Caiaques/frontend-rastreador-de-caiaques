@@ -1,8 +1,9 @@
-import { Injectable, OnDestroy } from '@angular/core';
+import { Injectable, OnDestroy, inject } from '@angular/core';
 import { webSocket, WebSocketSubject } from 'rxjs/webSocket';
 import { BehaviorSubject, Observable, Subject, timer } from 'rxjs';
 import { retry } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
+import { CadastroService } from './cadastro.service';
 
 export interface PontoRota {
   lat: number;
@@ -82,8 +83,11 @@ export class CaiaqueService implements OnDestroy {
   espBase$:        Observable<'online' | 'aguardando' | 'offline'> = this.espBase$$.asObservable();
   statusCaiaques$: Observable<StatusCaiaque[]>                     = this.statusCaiaques$$.asObservable();
 
+  private readonly cadastro = inject(CadastroService);
+
   constructor() {
     this.carregarDoStorage();
+    this.cadastro.rotulos$.subscribe(() => this.atualizarNomes());
 
     this.socket$ = webSocket<WsMensagem>({
       url: this.WS_URL,
@@ -131,7 +135,7 @@ export class CaiaqueService implements OnDestroy {
 
         const status: StatusCaiaque = {
           id:                pos.id,
-          nome:              `Caiaque ${pos.id}`,
+          nome:              this.cadastro.rotulo(pos.id),
           temGPS:            pos.lat != null && pos.lng != null,
           ultimaAtualizacao: new Date(),
         };
@@ -157,7 +161,7 @@ export class CaiaqueService implements OnDestroy {
 
         const novaSessao: SessaoCaiaque = {
           id:                pos.id,
-          nome:              `Caiaque ${pos.id}`,
+          nome:              this.cadastro.rotulo(pos.id),
           lat:               pos.lat,
           lng:               pos.lng,
           ultimaAtualizacao: new Date(agora).toISOString(),
@@ -173,6 +177,13 @@ export class CaiaqueService implements OnDestroy {
       },
       error: err => console.error('[WS] Erro:', err)
     });
+  }
+
+  private atualizarNomes(): void {
+    this.estado.forEach((sessao, id) => this.estado.set(id, { ...sessao, nome: this.cadastro.rotulo(id) }));
+    this.statusMap.forEach((status, id) => this.statusMap.set(id, { ...status, nome: this.cadastro.rotulo(id) }));
+    this.subject$$.next({ caiaques: [...this.estado.values()] });
+    this.statusCaiaques$$.next([...this.statusMap.values()]);
   }
 
   private carregarDoStorage(): void {
