@@ -9,12 +9,19 @@
       </svg>
       <span>Rastreador</span>
     </div>
-    <button class="header-status" (click)="abrirPainelStatus()">
-      <span class="sync-dot" [class.sync-dot--off]="!servidorConectado"></span>
-      <span class="sync-texto">
-        {{ servidorConectado ? formatarHora(ultimaSync) : 'Desconectado' }}
-      </span>
-    </button>
+    <div class="header-acoes">
+      <button type="button" class="btn-tema" (click)="alternarTema()"
+              [attr.aria-label]="tema.atual === 'escuro' ? 'Mudar para o modo claro' : 'Mudar para o modo escuro'">
+        <span class="btn-tema-icone" aria-hidden="true">{{ tema.atual === 'escuro' ? '☀' : '☾' }}</span>
+        <span class="btn-tema-texto">{{ tema.atual === 'escuro' ? 'Modo claro' : 'Modo escuro' }}</span>
+      </button>
+      <button class="header-status" (click)="abrirPainelStatus()">
+        <span class="sync-dot" [class.sync-dot--off]="!servidorConectado"></span>
+        <span class="sync-texto">
+          {{ servidorConectado ? formatarHora(ultimaSync) : 'Desconectado' }}
+        </span>
+      </button>
+    </div>
   </header>
 
   <aside class="frota" aria-label="Frota de hoje">
