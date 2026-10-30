@@ -2,6 +2,7 @@ import { Component, Input, Output, EventEmitter, OnInit, OnDestroy, ChangeDetect
 import { CommonModule } from '@angular/common';
 import { Subscription } from 'rxjs';
 import { CaiaqueService, StatusCaiaque, SessaoCaiaque } from '../services/caiaques.service';
+import { CadastroService } from '../services/cadastro.service';
 
 @Component({
   selector: 'app-painel-status',
@@ -17,12 +18,15 @@ export class PainelStatus implements OnInit, OnDestroy {
   servidorConectado = false;
   espBase: 'online' | 'aguardando' | 'offline' = 'aguardando';
   statusCaiaques: StatusCaiaque[] = [];
+  cadastroConectado = false;
+  cadastroErro = '';
 
   private subs: Subscription[] = [];
   private tickTimer: ReturnType<typeof setInterval> | null = null;
 
   constructor(
     public caiaqueService: CaiaqueService,
+    public cadastro: CadastroService,
     private cdr: ChangeDetectorRef
   ) {}
 
@@ -34,6 +38,10 @@ export class PainelStatus implements OnInit, OnDestroy {
       }),
       this.caiaqueService.espBase$.subscribe(v => {
         this.espBase = v;
+        this.cdr.detectChanges();
+      }),
+      this.cadastro.conectado$.subscribe(v => {
+        this.cadastroConectado = v;
         this.cdr.detectChanges();
       }),
       this.caiaqueService.statusCaiaques$.subscribe(v => {
@@ -48,6 +56,16 @@ export class PainelStatus implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.subs.forEach(s => s.unsubscribe());
     if (this.tickTimer) clearInterval(this.tickTimer);
+  }
+
+  async conectarCadastro(email: string, senha: string): Promise<void> {
+    this.cadastroErro = '';
+    try {
+      await this.cadastro.conectar(email, senha);
+    } catch {
+      this.cadastroErro = 'Não foi possível conectar ao cadastro.';
+    }
+    this.cdr.detectChanges();
   }
 
   fecharPainel(): void {
