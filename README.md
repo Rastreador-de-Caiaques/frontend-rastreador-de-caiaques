@@ -172,6 +172,12 @@ O serviço utiliza a classe `webSocket` do RxJS para:
 
 ---
 
+## Deploy (Vercel)
+
+O site em `frontend-rastreador-de-caiaques.vercel.app` é publicado pelo Vercel a partir da branch `main` **deste** repositório (organização `Rastreador-de-Caiaques`). Cada merge na `main` gera um novo deploy de produção; PRs geram deploys de preview.
+
+O mapa é um PWA: depois do deploy ele pode ser instalado no celular (Chrome no Android: "Instalar app"; Safari no iPhone: "Adicionar à Tela de Início"). O cadastro de caiaques e clientes (Firebase) é opcional e vem desligado — veja `environment.cadastro`.
+
 ## Testes
 
 O frontend conta com suporte a testes de unidade do Angular CLI. Para executar os testes usando o Karma:
