@@ -29,6 +29,21 @@
       </div>
     </div>
 
+    <!-- Cadastro (opcional) -->
+    <div class="info-card" *ngIf="cadastro.habilitado">
+      <span class="info-label">Cadastro</span>
+      <div class="status-badge" *ngIf="cadastroConectado" [class.badge--on]="true">
+        <span class="badge-dot"></span>
+        <span>Conectado</span>
+      </div>
+      <form *ngIf="!cadastroConectado" (submit)="$event.preventDefault(); conectarCadastro(email.value, senha.value)">
+        <input #email type="email" placeholder="E-mail" autocomplete="username" />
+        <input #senha type="password" placeholder="Senha" autocomplete="current-password" />
+        <button type="submit">Conectar ao cadastro</button>
+        <span class="cadastro-erro" *ngIf="cadastroErro">{{ cadastroErro }}</span>
+      </form>
+    </div>
+
     <!-- Base ESP -->
     <div class="info-card">
       <span class="info-label">Base ESP</span>

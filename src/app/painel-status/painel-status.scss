@@ -241,3 +241,32 @@
   padding: 1.5rem 0;
   font-family: 'Space Mono', monospace;
 }
+
+.info-card form {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+
+  input {
+    padding: 6px 8px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font: inherit;
+  }
+
+  button {
+    padding: 6px 8px;
+    border: 0;
+    border-radius: 6px;
+    background: var(--accent);
+    color: #fff;
+    font: inherit;
+    cursor: pointer;
+  }
+
+  .cadastro-erro {
+    color: #c0392b;
+    font-size: 12px;
+  }
+}
